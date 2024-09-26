@@ -36,12 +36,12 @@ public class ChangeTemplate extends Recipe {
 
     @Override
     public String getDisplayName() {
-        return "Change GitLab Template";
+        return "Change GitLab template";
     }
 
     @Override
     public String getDescription() {
-        return "Change a GitLab Template in use.";
+        return "Change a GitLab template in use.";
     }
 
     @Override
