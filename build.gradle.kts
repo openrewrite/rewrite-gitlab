@@ -9,4 +9,5 @@ val rewriteVersion = rewriteRecipe.rewriteVersion.get()
 dependencies {
     implementation(platform("org.openrewrite:rewrite-bom:$rewriteVersion"))
     implementation("org.openrewrite:rewrite-core:$rewriteVersion")
+    implementation("org.openrewrite:rewrite-yaml:$rewriteVersion")
 }
