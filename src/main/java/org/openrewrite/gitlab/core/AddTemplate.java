@@ -17,11 +17,12 @@ package org.openrewrite.gitlab.core;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
-import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.TreeVisitor;
 import org.openrewrite.yaml.MergeYaml;
+
+import java.util.Collections;
+import java.util.List;
 
 @Value
 @EqualsAndHashCode(callSuper = false)
@@ -43,7 +44,15 @@ public class AddTemplate extends Recipe {
     }
 
     @Override
-    public TreeVisitor<?, ExecutionContext> getVisitor() {
-        return new MergeYaml("$", "include:\n - template: " + newTemplate, false, "template", ".gitlab-ci.yml").getVisitor();
+    public List<Recipe> getRecipeList() {
+        return Collections.singletonList(
+                new MergeYaml(
+                        "$",
+                        "include:\n - template: " + newTemplate,
+                        false,
+                        "template",
+                        ".gitlab-ci.yml"
+                )
+        );
     }
 }
