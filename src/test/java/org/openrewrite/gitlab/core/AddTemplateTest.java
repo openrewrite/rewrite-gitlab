@@ -35,7 +35,7 @@ class AddTemplateTest implements RewriteTest {
         //language=yaml
         rewriteRun(
           yaml(
-              """
+            """
               include:
                 - template: Gradle.gitlab-ci.yml
               """,
@@ -50,13 +50,28 @@ class AddTemplateTest implements RewriteTest {
     }
 
     @Test
-    void addNew() {
+    void addNewWhereNoneExist() {
         //language=yaml
         rewriteRun(
           yaml(
             "",
             """
               include:
+                - template: Jobs/SAST.gitlab-ci.yml
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void noopWhenAlreadyPresent() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - template: Gradle.gitlab-ci.yml
                 - template: Jobs/SAST.gitlab-ci.yml
               """,
             source -> source.path(".gitlab-ci.yml")
