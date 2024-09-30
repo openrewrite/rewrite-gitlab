@@ -17,8 +17,12 @@ package org.openrewrite.gitlab.core;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
-import org.openrewrite.*;
+import org.openrewrite.Option;
+import org.openrewrite.Recipe;
 import org.openrewrite.yaml.ChangeValue;
+
+import java.util.Collections;
+import java.util.List;
 
 @Value
 @EqualsAndHashCode(callSuper = false)
@@ -45,13 +49,12 @@ public class ChangeTemplate extends Recipe {
     }
 
     @Override
-    public TreeVisitor<?, ExecutionContext> getVisitor() {
-        return Preconditions.check(
-                new FindSourceFiles(".gitlab-ci.yml"),
+    public List<Recipe> getRecipeList() {
+        return Collections.singletonList(
                 new ChangeValue(
                         "$.include[?(@.template =~ '" + oldTemplate + "(?:@.+)?')].template",
                         newTemplate,
-                        null).getVisitor()
+                        ".gitlab-ci.yml")
         );
     }
 }
