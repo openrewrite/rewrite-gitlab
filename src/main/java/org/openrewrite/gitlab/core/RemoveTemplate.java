@@ -34,12 +34,12 @@ public class RemoveTemplate extends Recipe {
 
     @Override
     public String getDisplayName() {
-        return "Change GitLab template";
+        return "Remove GitLab template";
     }
 
     @Override
     public String getDescription() {
-        return "Change a GitLab template in use.";
+        return "Remove a GitLab template from use.";
     }
 
     @Override
