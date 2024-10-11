@@ -29,10 +29,10 @@ class AddComponentTest implements RewriteTest {
     @Override
     public void defaults(RecipeSpec spec) {
         spec.recipe(
-                new AddComponent(
-                        "$CI_SERVER_FQDN/components/opentofu/full-pipeline",
-                        "0.10.0",
-                        List.of("version: 0.10.0", "opentofu_version: 1.6.1")));
+          new AddComponent(
+            "$CI_SERVER_FQDN/components/opentofu/full-pipeline",
+            "0.10.0",
+            List.of("version: 0.10.0", "opentofu_version: 1.6.1")));
     }
 
     @DocumentExample
