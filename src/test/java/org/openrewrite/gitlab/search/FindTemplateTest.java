@@ -13,32 +13,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.openrewrite.gitlab.core;
+package org.openrewrite.gitlab.search;
 
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
+import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
 
 import static org.openrewrite.yaml.Assertions.yaml;
 
-class ChangeTemplateTest implements RewriteTest {
+class FindTemplateTest implements RewriteTest {
+    @Override
+    public void defaults(RecipeSpec spec) {
+        spec.recipe(new FindTemplate("Gradle.gitlab-ci.yml"));
+    }
+
     @DocumentExample
     @Test
-    void updateTemplate() {
-        rewriteRun(spec -> spec.recipe(
-            new ChangeTemplate(
-              "Terraform/Base.gitlab-ci.yml",
-              "OpenTofu/Base.gitlab-ci.yml"
-            )),
-          //language=yaml
+    void exists() {
+        //language=yaml
+        rewriteRun(
           yaml(
             """
               include:
-                - template: Terraform/Base.gitlab-ci.yml
+                - template: Gradle.gitlab-ci.yml
               """,
             """
               include:
-                - template: OpenTofu/Base.gitlab-ci.yml
+                - ~~>template: Gradle.gitlab-ci.yml
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @DocumentExample
+    @Test
+    void notExists() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - template: Jobs/SAST.gitlab-ci.yml
               """,
             source -> source.path(".gitlab-ci.yml")
           )

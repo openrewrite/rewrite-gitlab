@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.openrewrite.gitlab.core;
+package org.openrewrite.gitlab;
 
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
@@ -21,20 +21,20 @@ import org.openrewrite.test.RewriteTest;
 
 import static org.openrewrite.yaml.Assertions.yaml;
 
-class RemoveTemplateTest implements RewriteTest {
+class ChangeTemplateTest implements RewriteTest {
     @DocumentExample
     @Test
-    void removeTemplate() {
+    void updateTemplate() {
         rewriteRun(spec -> spec.recipe(
-            new RemoveTemplate(
-              "Terraform/Base.gitlab-ci.yml"
+            new ChangeTemplate(
+              "Terraform/Base.gitlab-ci.yml",
+              "OpenTofu/Base.gitlab-ci.yml"
             )),
           //language=yaml
           yaml(
             """
               include:
                 - template: Terraform/Base.gitlab-ci.yml
-                - template: OpenTofu/Base.gitlab-ci.yml
               """,
             """
               include:

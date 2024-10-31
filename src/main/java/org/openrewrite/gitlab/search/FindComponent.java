@@ -13,46 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.openrewrite.gitlab.core;
+package org.openrewrite.gitlab.search;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.yaml.MergeYaml;
+import org.openrewrite.yaml.search.FindKey;
 
 import java.util.Collections;
 import java.util.List;
 
 @Value
 @EqualsAndHashCode(callSuper = false)
-public class AddTemplate extends Recipe {
+public class FindComponent extends Recipe {
 
-    @Option(displayName = "Template",
-            description = "Name of the template to use instead.",
-            example = "OpenTofu/Base.gitlab-ci.yml")
-    String newTemplate;
+    @Option(displayName = "Component",
+            description = "The component key to look for",
+            example = "$CI_SERVER_FQDN/components/opentofu/full-pipeline")
+    String component;
 
     @Override
     public String getDisplayName() {
-        return "Add GitLab template";
+        return "Find GitLab Component";
     }
 
     @Override
     public String getDescription() {
-        return "Add a GitLab template to an existing list, or add a new list where none was present.";
+        return "Find a GitLab Component in use.";
     }
 
     @Override
     public List<Recipe> getRecipeList() {
-        return Collections.singletonList(
-                new MergeYaml(
-                        "$",
-                        "include:\n - template: " + newTemplate,
-                        false,
-                        "template",
-                        ".gitlab-ci.yml"
-                )
-        );
+        return Collections.singletonList(new FindKey("$.include[?(@.component =~ '" + component + "(?:@.+)?')].component"));
     }
 }

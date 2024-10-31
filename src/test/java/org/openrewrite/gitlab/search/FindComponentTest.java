@@ -13,42 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.openrewrite.gitlab.core;
+package org.openrewrite.gitlab.search;
 
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
 
-import java.util.List;
-
 import static org.openrewrite.yaml.Assertions.yaml;
 
-class AddComponentTest implements RewriteTest {
-
+class FindComponentTest implements RewriteTest {
     @Override
     public void defaults(RecipeSpec spec) {
-        spec.recipe(
-          new AddComponent(
-            "$CI_SERVER_FQDN/components/opentofu/full-pipeline",
-            "0.10.0",
-            List.of("version: 0.10.0", "opentofu_version: 1.6.1")));
+        spec.recipe(new FindComponent("\\$CI_SERVER_FQDN/components/opentofu/full-pipeline"));
     }
 
     @DocumentExample
     @Test
-    void addToExistingList() {
+    void exists() {
         //language=yaml
         rewriteRun(
           yaml(
             """
               include:
-                - template: Gradle.gitlab-ci.yml
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                  inputs:
+                    version: 0.10.0
+                    opentofu_version: 1.6.1
               """,
             """
               include:
-                - template: Gradle.gitlab-ci.yml
-                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                - ~~>component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
                   inputs:
                     version: 0.10.0
                     opentofu_version: 1.6.1
@@ -58,33 +53,15 @@ class AddComponentTest implements RewriteTest {
         );
     }
 
+    @DocumentExample
     @Test
-    void addNewWhereNoneExist() {
-        //language=yaml
-        rewriteRun(
-          yaml(
-            "",
-            """
-              include:
-                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
-                  inputs:
-                    version: 0.10.0
-                    opentofu_version: 1.6.1
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void noopWhenAlreadyPresent() {
+    void notExists() {
         //language=yaml
         rewriteRun(
           yaml(
             """
               include:
-                - template: Gradle.gitlab-ci.yml
-                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                - component: $CI_SERVER_FQDN/components/opentofu/job-templates@0.10.0
                   inputs:
                     version: 0.10.0
                     opentofu_version: 1.6.1
