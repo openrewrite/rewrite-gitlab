@@ -13,25 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.openrewrite.gitlab.core;
+package org.openrewrite.gitlab;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.yaml.ChangeValue;
+import org.openrewrite.yaml.MergeYaml;
 
 import java.util.Collections;
 import java.util.List;
 
 @Value
 @EqualsAndHashCode(callSuper = false)
-public class ChangeTemplate extends Recipe {
-
-    @Option(displayName = "Template",
-            description = "The name of the template to match.",
-            example = "Terraform/Base.gitlab-ci.yml")
-    String oldTemplate;
+public class AddTemplate extends Recipe {
 
     @Option(displayName = "Template",
             description = "Name of the template to use instead.",
@@ -40,21 +35,24 @@ public class ChangeTemplate extends Recipe {
 
     @Override
     public String getDisplayName() {
-        return "Change GitLab template";
+        return "Add GitLab template";
     }
 
     @Override
     public String getDescription() {
-        return "Change a GitLab template in use.";
+        return "Add a GitLab template to an existing list, or add a new list where none was present.";
     }
 
     @Override
     public List<Recipe> getRecipeList() {
         return Collections.singletonList(
-                new ChangeValue(
-                        "$.include[?(@.template =~ '" + oldTemplate + "(?:@.+)?')].template",
-                        newTemplate,
-                        ".gitlab-ci.yml")
+                new MergeYaml(
+                        "$",
+                        "include:\n - template: " + newTemplate,
+                        false,
+                        "template",
+                        ".gitlab-ci.yml"
+                )
         );
     }
 }

@@ -13,46 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.openrewrite.gitlab.core;
+package org.openrewrite.gitlab;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
+import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.yaml.MergeYaml;
-
-import java.util.Collections;
-import java.util.List;
+import org.openrewrite.TreeVisitor;
+import org.openrewrite.yaml.DeleteKey;
 
 @Value
-@EqualsAndHashCode(callSuper = false)
-public class AddTemplate extends Recipe {
+@EqualsAndHashCode
+public class RemoveTemplate extends Recipe {
 
     @Option(displayName = "Template",
-            description = "Name of the template to use instead.",
-            example = "OpenTofu/Base.gitlab-ci.yml")
-    String newTemplate;
+            description = "The name of the template to match.",
+            example = "Terraform/Base.gitlab-ci.yml")
+    String oldTemplate;
 
     @Override
     public String getDisplayName() {
-        return "Add GitLab template";
+        return "Remove GitLab template";
     }
 
     @Override
     public String getDescription() {
-        return "Add a GitLab template to an existing list, or add a new list where none was present.";
+        return "Remove a GitLab template from use.";
     }
 
     @Override
-    public List<Recipe> getRecipeList() {
-        return Collections.singletonList(
-                new MergeYaml(
-                        "$",
-                        "include:\n - template: " + newTemplate,
-                        false,
-                        "template",
-                        ".gitlab-ci.yml"
-                )
-        );
+    public TreeVisitor<?, ExecutionContext> getVisitor() {
+        return new DeleteKey(
+                "$.include[?(@.template =~ '" + oldTemplate + "(?:@.+)?')]",
+                ".gitlab-ci.yml").getVisitor();
     }
 }
