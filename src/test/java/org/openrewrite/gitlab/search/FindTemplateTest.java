@@ -33,17 +33,17 @@ class FindTemplateTest implements RewriteTest {
     void exists() {
         //language=yaml
         rewriteRun(
-                yaml(
-                        """
-                          include:
-                            - template: Gradle.gitlab-ci.yml
-                          """,
-                        """
-                          include:
-                            - ~~>template: Gradle.gitlab-ci.yml
-                          """,
-                        source -> source.path(".gitlab-ci.yml")
-                )
+          yaml(
+            """
+              include:
+                - template: Gradle.gitlab-ci.yml
+              """,
+            """
+              include:
+                - ~~>template: Gradle.gitlab-ci.yml
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
         );
     }
 
@@ -52,13 +52,13 @@ class FindTemplateTest implements RewriteTest {
     void notExists() {
         //language=yaml
         rewriteRun(
-                yaml(
-                        """
-                          include:
-                            - template: Jobs/SAST.gitlab-ci.yml
-                          """,
-                        source -> source.path(".gitlab-ci.yml")
-                )
+          yaml(
+            """
+              include:
+                - template: Jobs/SAST.gitlab-ci.yml
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
         );
     }
 }

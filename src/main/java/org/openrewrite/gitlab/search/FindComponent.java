@@ -28,8 +28,8 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = false)
 public class FindComponent extends Recipe {
 
-    @Option(displayName = "component",
-            description = "The template key to look for",
+    @Option(displayName = "Component",
+            description = "The component key to look for",
             example = "$CI_SERVER_FQDN/components/opentofu/full-pipeline")
     String component;
 

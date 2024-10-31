@@ -28,7 +28,7 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = false)
 public class FindTemplate extends Recipe {
 
-    @Option(displayName = "template",
+    @Option(displayName = "Template",
             description = "The template key to look for",
             example = "Terraform/Base.gitlab-ci.yml")
     String template;

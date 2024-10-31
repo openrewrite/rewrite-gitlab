@@ -33,23 +33,23 @@ class FindComponentTest implements RewriteTest {
     void exists() {
         //language=yaml
         rewriteRun(
-            yaml(
-                """
-                  include:
-                    - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
-                      inputs:
-                        version: 0.10.0
-                        opentofu_version: 1.6.1
-                  """,
-                """
-                  include:
-                    - ~~>component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
-                      inputs:
-                        version: 0.10.0
-                        opentofu_version: 1.6.1
-                  """,
-                source -> source.path(".gitlab-ci.yml")
-            )
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                  inputs:
+                    version: 0.10.0
+                    opentofu_version: 1.6.1
+              """,
+            """
+              include:
+                - ~~>component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                  inputs:
+                    version: 0.10.0
+                    opentofu_version: 1.6.1
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
         );
     }
 
@@ -58,16 +58,16 @@ class FindComponentTest implements RewriteTest {
     void notExists() {
         //language=yaml
         rewriteRun(
-            yaml(
-                """
-                  include:
-                    - component: $CI_SERVER_FQDN/components/opentofu/job-templates@0.10.0
-                      inputs:
-                        version: 0.10.0
-                        opentofu_version: 1.6.1
-                  """,
-                source -> source.path(".gitlab-ci.yml")
-            )
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/components/opentofu/job-templates@0.10.0
+                  inputs:
+                    version: 0.10.0
+                    opentofu_version: 1.6.1
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
         );
     }
 }
