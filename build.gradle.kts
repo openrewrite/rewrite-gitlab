@@ -8,6 +8,8 @@ description = "Rewrite GitLab recipes."
 val rewriteVersion = rewriteRecipe.rewriteVersion.get()
 dependencies {
     implementation(platform("org.openrewrite:rewrite-bom:$rewriteVersion"))
-    implementation("org.openrewrite:rewrite-core:$rewriteVersion")
-    implementation("org.openrewrite:rewrite-yaml:$rewriteVersion")
+    implementation("org.openrewrite:rewrite-core")
+    implementation("org.openrewrite:rewrite-yaml")
+
+    testImplementation("org.openrewrite:rewrite-test")
 }
