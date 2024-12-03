@@ -27,10 +27,7 @@ import static org.openrewrite.yaml.Assertions.yaml;
 class AddStagesTest implements RewriteTest {
     @Override
     public void defaults(RecipeSpec spec) {
-        spec.recipe(
-                new AddStages(
-                        List.of("build", "test", "deploy"),
-                        false));
+        spec.recipe(new AddStages(List.of("build", "test", "deploy"), false));
     }
 
     @DocumentExample
@@ -38,17 +35,17 @@ class AddStagesTest implements RewriteTest {
     void addNew() {
         //language=yaml
         rewriteRun(
-                yaml(
-                        """
-                          """,
-                        """
-                          stages:
-                            - build
-                            - test
-                            - deploy
-                          """,
-                        source -> source.path(".gitlab-ci.yml")
-                )
+          yaml(
+            """
+              """,
+            """
+              stages:
+                - build
+                - test
+                - deploy
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
         );
     }
 
@@ -56,19 +53,35 @@ class AddStagesTest implements RewriteTest {
     void replaceExisting() {
         //language=yaml
         rewriteRun(
-                yaml(
-                        """
-                          stages:
-                            - build
-                          """,
-                        """
-                          stages:
-                            - build
-                            - test
-                            - deploy
-                          """,
-                        source -> source.path(".gitlab-ci.yml")
-                )
+          yaml(
+            """
+              stages:
+                - build
+              """,
+            """
+              stages:
+                - build
+                - test
+                - deploy
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void retainExisting() {
+        //language=yaml
+        rewriteRun(
+          spec ->
+            spec.recipe(new AddStages(List.of("build", "test", "deploy"), true)),
+          yaml(
+            """
+              stages:
+                - build
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
         );
     }
 }
