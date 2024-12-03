@@ -52,7 +52,6 @@ class AddStagesTest implements RewriteTest {
         );
     }
 
-    @DocumentExample
     @Test
     void replaceExisting() {
         //language=yaml
