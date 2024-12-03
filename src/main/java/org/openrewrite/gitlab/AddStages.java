@@ -17,6 +17,7 @@ package org.openrewrite.gitlab;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
+import org.jspecify.annotations.Nullable;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
 import org.openrewrite.yaml.MergeYaml;
@@ -29,14 +30,14 @@ import java.util.List;
 public class AddStages extends Recipe {
     @Option(displayName = "Stages",
             description = "Stages to add.",
-            example = "build,test,deploy",
-            required = true)
+            example = "build,test,deploy")
     List<String> stages;
 
     @Option(
             displayName = "Accept theirs",
             description = "When the set of stages would conflict, prefer the original value.",
             required = false)
+    @Nullable
     Boolean acceptTheirs;
 
     @Override
