@@ -5,9 +5,9 @@ plugins {
 group = "org.openrewrite.recipe"
 description = "Rewrite GitLab recipes."
 
-val rewriteVersion = rewriteRecipe.rewriteVersion.get()
+val rewriteVersion = "latest.release"
 dependencies {
-    implementation(platform("org.openrewrite:rewrite-bom:$rewriteVersion"))
+    implementation(platform("org.openrewrite:rewrite-bom:8.41.1"))
     implementation("org.openrewrite:rewrite-core")
     implementation("org.openrewrite:rewrite-yaml")
 
