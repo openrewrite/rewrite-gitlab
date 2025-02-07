@@ -51,8 +51,8 @@ public class AddTemplate extends Recipe {
                         "include:\n - template: " + newTemplate,
                         false,
                         "template",
-                        ".gitlab-ci.yml"
-                )
+                        ".gitlab-ci.yml",
+                        null)
         );
     }
 }

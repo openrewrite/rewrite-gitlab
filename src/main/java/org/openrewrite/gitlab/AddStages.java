@@ -60,7 +60,8 @@ public class AddStages extends Recipe {
                                 "  - " + String.join("\n  - ", stages),
                         acceptTheirs,
                         "stages",
-                        ".gitlab-ci.yml")
+                        ".gitlab-ci.yml",
+                        null)
         );
     }
 }

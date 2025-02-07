@@ -72,7 +72,8 @@ public class AddComponent extends Recipe {
                         includeBlock.toString(),
                         false,
                         "component",
-                        ".gitlab-ci.yml")
+                        ".gitlab-ci.yml",
+                        null)
         );
     }
 }
