@@ -73,6 +73,7 @@ public class AddComponent extends Recipe {
                         false,
                         "component",
                         ".gitlab-ci.yml",
+                        null,
                         null)
         );
     }
