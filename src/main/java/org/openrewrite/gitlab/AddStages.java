@@ -62,6 +62,7 @@ public class AddStages extends Recipe {
                         "stages",
                         ".gitlab-ci.yml",
                         null,
+                        null,
                         null)
         );
     }
