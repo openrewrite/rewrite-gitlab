@@ -1,0 +1,150 @@
+# Copyright 2025 the original author or authors.
+# <p>
+# Licensed under the Moderne Source Available License (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# <p>
+# https://docs.moderne.io/licensing/moderne-source-available-license
+# <p>
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.AddComponent
+examples:
+  - description: ''
+    parameters:
+      - $CI_SERVER_FQDN/components/opentofu/full-pipeline
+      - 0.10.0
+      - 'List.of("version: 0.10.0", "opentofu_version: 1.6.1")'
+    sources:
+      - before: |
+          include:
+            - template: Gradle.gitlab-ci.yml
+        after: |
+          include:
+            - template: Gradle.gitlab-ci.yml
+            - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+              inputs:
+                version: 0.10.0
+                opentofu_version: 1.6.1
+        language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.AddStages
+examples:
+  - description: ''
+    parameters:
+      - List.of("build", "test", "deploy")
+      - 'false'
+    sources:
+      - after: |
+          stages:
+            - build
+            - test
+            - deploy
+        language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.AddTemplate
+examples:
+  - description: ''
+    parameters:
+      - Jobs/SAST.gitlab-ci.yml
+    sources:
+      - before: |
+          include:
+            - template: Gradle.gitlab-ci.yml
+        after: |
+          include:
+            - template: Gradle.gitlab-ci.yml
+            - template: Jobs/SAST.gitlab-ci.yml
+        language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.ChangeTemplate
+examples:
+  - description: ''
+    parameters:
+      - Terraform/Base.gitlab-ci.yml
+      - OpenTofu/Base.gitlab-ci.yml
+    sources:
+      - before: |
+          include:
+            - template: Terraform/Base.gitlab-ci.yml
+        after: |
+          include:
+            - template: OpenTofu/Base.gitlab-ci.yml
+        language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.RemoveTemplate
+examples:
+  - description: ''
+    parameters:
+      - Terraform/Base.gitlab-ci.yml
+    sources:
+      - before: |
+          include:
+            - template: Terraform/Base.gitlab-ci.yml
+            - template: OpenTofu/Base.gitlab-ci.yml
+        after: |
+          include:
+            - template: OpenTofu/Base.gitlab-ci.yml
+        language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.search.FindComponent
+examples:
+  - description: ''
+    parameters: &id001
+      - \$CI_SERVER_FQDN/components/opentofu/full-pipeline
+    sources:
+      - before: |
+          include:
+            - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+              inputs:
+                version: 0.10.0
+                opentofu_version: 1.6.1
+        after: |
+          include:
+            - ~~>component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+              inputs:
+                version: 0.10.0
+                opentofu_version: 1.6.1
+        language: yaml
+  - description: ''
+    parameters: *id001
+    sources:
+      - before: |
+          include:
+            - component: $CI_SERVER_FQDN/components/opentofu/job-templates@0.10.0
+              inputs:
+                version: 0.10.0
+                opentofu_version: 1.6.1
+        language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.search.FindTemplate
+examples:
+  - description: ''
+    parameters: &id002
+      - Gradle.gitlab-ci.yml
+    sources:
+      - before: |
+          include:
+            - template: Gradle.gitlab-ci.yml
+        after: |
+          include:
+            - ~~>template: Gradle.gitlab-ci.yml
+        language: yaml
+  - description: ''
+    parameters: *id002
+    sources:
+      - before: |
+          include:
+            - template: Jobs/SAST.gitlab-ci.yml
+        language: yaml
