@@ -100,7 +100,7 @@ type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.search.FindComponent
 examples:
   - description: ''
-    parameters: &id001
+    parameters:
       - \$CI_SERVER_FQDN/components/opentofu/full-pipeline
     sources:
       - before: |
@@ -116,22 +116,12 @@ examples:
                 version: 0.10.0
                 opentofu_version: 1.6.1
         language: yaml
-  - description: ''
-    parameters: *id001
-    sources:
-      - before: |
-          include:
-            - component: $CI_SERVER_FQDN/components/opentofu/job-templates@0.10.0
-              inputs:
-                version: 0.10.0
-                opentofu_version: 1.6.1
-        language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.search.FindTemplate
 examples:
   - description: ''
-    parameters: &id002
+    parameters:
       - Gradle.gitlab-ci.yml
     sources:
       - before: |
@@ -140,11 +130,4 @@ examples:
         after: |
           include:
             - ~~>template: Gradle.gitlab-ci.yml
-        language: yaml
-  - description: ''
-    parameters: *id002
-    sources:
-      - before: |
-          include:
-            - template: Jobs/SAST.gitlab-ci.yml
         language: yaml

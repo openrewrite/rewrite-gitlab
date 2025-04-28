@@ -53,7 +53,6 @@ class FindComponentTest implements RewriteTest {
         );
     }
 
-    @DocumentExample
     @Test
     void notExists() {
         //language=yaml

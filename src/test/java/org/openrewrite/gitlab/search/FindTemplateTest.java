@@ -47,7 +47,6 @@ class FindTemplateTest implements RewriteTest {
         );
     }
 
-    @DocumentExample
     @Test
     void notExists() {
         //language=yaml
