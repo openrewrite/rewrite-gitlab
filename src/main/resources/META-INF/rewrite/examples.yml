@@ -15,119 +15,119 @@
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.AddComponent
 examples:
-  - description: ''
-    parameters:
-      - $CI_SERVER_FQDN/components/opentofu/full-pipeline
-      - 0.10.0
-      - 'List.of("version: 0.10.0", "opentofu_version: 1.6.1")'
-    sources:
-      - before: |
-          include:
-            - template: Gradle.gitlab-ci.yml
-        after: |
-          include:
-            - template: Gradle.gitlab-ci.yml
-            - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
-              inputs:
-                version: 0.10.0
-                opentofu_version: 1.6.1
-        language: yaml
+- description: ''
+  parameters:
+  - $CI_SERVER_FQDN/components/opentofu/full-pipeline
+  - 0.10.0
+  - 'List.of("version: 0.10.0", "opentofu_version: 1.6.1")'
+  sources:
+  - before: |
+      include:
+        - template: Gradle.gitlab-ci.yml
+    after: |
+      include:
+        - template: Gradle.gitlab-ci.yml
+        - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+          inputs:
+            version: 0.10.0
+            opentofu_version: 1.6.1
+    language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.AddStages
 examples:
-  - description: ''
-    parameters:
-      - List.of("build", "test", "deploy")
-      - 'false'
-    sources:
-      - after: |
-          stages:
-            - build
-            - test
-            - deploy
-        language: yaml
+- description: ''
+  parameters:
+  - List.of("build", "test", "deploy")
+  - 'false'
+  sources:
+  - after: |
+      stages:
+        - build
+        - test
+        - deploy
+    language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.AddTemplate
 examples:
-  - description: ''
-    parameters:
-      - Jobs/SAST.gitlab-ci.yml
-    sources:
-      - before: |
-          include:
-            - template: Gradle.gitlab-ci.yml
-        after: |
-          include:
-            - template: Gradle.gitlab-ci.yml
-            - template: Jobs/SAST.gitlab-ci.yml
-        language: yaml
+- description: ''
+  parameters:
+  - Jobs/SAST.gitlab-ci.yml
+  sources:
+  - before: |
+      include:
+        - template: Gradle.gitlab-ci.yml
+    after: |
+      include:
+        - template: Gradle.gitlab-ci.yml
+        - template: Jobs/SAST.gitlab-ci.yml
+    language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.ChangeTemplate
 examples:
-  - description: ''
-    parameters:
-      - Terraform/Base.gitlab-ci.yml
-      - OpenTofu/Base.gitlab-ci.yml
-    sources:
-      - before: |
-          include:
-            - template: Terraform/Base.gitlab-ci.yml
-        after: |
-          include:
-            - template: OpenTofu/Base.gitlab-ci.yml
-        language: yaml
+- description: ''
+  parameters:
+  - Terraform/Base.gitlab-ci.yml
+  - OpenTofu/Base.gitlab-ci.yml
+  sources:
+  - before: |
+      include:
+        - template: Terraform/Base.gitlab-ci.yml
+    after: |
+      include:
+        - template: OpenTofu/Base.gitlab-ci.yml
+    language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.RemoveTemplate
 examples:
-  - description: ''
-    parameters:
-      - Terraform/Base.gitlab-ci.yml
-    sources:
-      - before: |
-          include:
-            - template: Terraform/Base.gitlab-ci.yml
-            - template: OpenTofu/Base.gitlab-ci.yml
-        after: |
-          include:
-            - template: OpenTofu/Base.gitlab-ci.yml
-        language: yaml
+- description: ''
+  parameters:
+  - Terraform/Base.gitlab-ci.yml
+  sources:
+  - before: |
+      include:
+        - template: Terraform/Base.gitlab-ci.yml
+        - template: OpenTofu/Base.gitlab-ci.yml
+    after: |
+      include:
+        - template: OpenTofu/Base.gitlab-ci.yml
+    language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.search.FindComponent
 examples:
-  - description: ''
-    parameters:
-      - \$CI_SERVER_FQDN/components/opentofu/full-pipeline
-    sources:
-      - before: |
-          include:
-            - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
-              inputs:
-                version: 0.10.0
-                opentofu_version: 1.6.1
-        after: |
-          include:
-            - ~~>component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
-              inputs:
-                version: 0.10.0
-                opentofu_version: 1.6.1
-        language: yaml
+- description: ''
+  parameters:
+  - \$CI_SERVER_FQDN/components/opentofu/full-pipeline
+  sources:
+  - before: |
+      include:
+        - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+          inputs:
+            version: 0.10.0
+            opentofu_version: 1.6.1
+    after: |
+      include:
+        - ~~>component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+          inputs:
+            version: 0.10.0
+            opentofu_version: 1.6.1
+    language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.search.FindTemplate
 examples:
-  - description: ''
-    parameters:
-      - Gradle.gitlab-ci.yml
-    sources:
-      - before: |
-          include:
-            - template: Gradle.gitlab-ci.yml
-        after: |
-          include:
-            - ~~>template: Gradle.gitlab-ci.yml
-        language: yaml
+- description: ''
+  parameters:
+  - Gradle.gitlab-ci.yml
+  sources:
+  - before: |
+      include:
+        - template: Gradle.gitlab-ci.yml
+    after: |
+      include:
+        - ~~>template: Gradle.gitlab-ci.yml
+    language: yaml
