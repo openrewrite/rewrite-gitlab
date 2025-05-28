@@ -17,6 +17,7 @@ package org.openrewrite.gitlab;
 
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
+import org.openrewrite.Issue;
 import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
 
@@ -88,6 +89,31 @@ class AddComponentTest implements RewriteTest {
                   inputs:
                     version: 0.10.0
                     opentofu_version: 1.6.1
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Issue("https://github.com/openrewrite/rewrite-gitlab/issues/22")
+    @Test
+    void addWithoutInputs() {
+        //language=yaml
+        rewriteRun(
+          spec -> spec.recipe(
+            new AddComponent(
+              "$CI_SERVER_FQDN/components/opentofu/full-pipeline",
+              "0.10.0",
+              null)),
+          yaml(
+            """
+              include:
+                - template: Gradle.gitlab-ci.yml
+              """,
+            """
+              include:
+                - template: Gradle.gitlab-ci.yml
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
               """,
             source -> source.path(".gitlab-ci.yml")
           )

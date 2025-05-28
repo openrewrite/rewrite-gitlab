@@ -17,6 +17,7 @@ package org.openrewrite.gitlab;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
+import org.jspecify.annotations.Nullable;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
 import org.openrewrite.yaml.MergeYaml;
@@ -39,7 +40,9 @@ public class AddComponent extends Recipe {
 
     @Option(displayName = "Inputs",
             description = "The set of inputs to provide",
-            example = "opentofu_version: 1.6.1")
+            example = "opentofu_version: 1.6.1",
+            required = false)
+    @Nullable
     List<String> inputs;
 
     @Override
@@ -60,10 +63,12 @@ public class AddComponent extends Recipe {
                 .append(newComponent)
                 .append("@")
                 .append(version)
-                .append("\n")
-                .append("   inputs:\n");
+                .append("\n");
 
-        inputs.forEach(input -> includeBlock.append("     ").append(input).append("\n"));
+        if (inputs != null && !inputs.isEmpty()) {
+            includeBlock.append("   inputs:\n");
+            inputs.forEach(input -> includeBlock.append("     ").append(input).append("\n"));
+        }
 
         return Collections.singletonList(
                 new MergeYaml(
