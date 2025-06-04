@@ -24,7 +24,55 @@ import static org.openrewrite.yaml.Assertions.yaml;
 class ChangeComponentTest implements RewriteTest {
     @DocumentExample
     @Test
-    void updateTemplate() {
+    void updateComponent() {
+        rewriteRun(spec -> spec.recipe(
+            new ChangeComponent(
+              "some-component",
+              "0.10.0",
+              "other-component",
+              "1.0.0"
+            )),
+          //language=yaml
+          yaml(
+            """
+              include:
+                - component: some-component@0.10.0
+              """,
+            """
+              include:
+                - component: other-component@1.0.0
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void updateComponentVersion() {
+        rewriteRun(spec -> spec.recipe(
+            new ChangeComponent(
+              "some-component",
+              "1.0",
+              null,
+              "2.0"
+            )),
+          //language=yaml
+          yaml(
+            """
+              include:
+                - component: some-component@1.0
+              """,
+            """
+              include:
+                - component: some-component@2.0
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void escapedComponentPath() {
         rewriteRun(spec -> spec.recipe(
             new ChangeComponent(
               "\\$CI_SERVER_FQDN/components/opentofu/full-pipeline",
@@ -51,20 +99,20 @@ class ChangeComponentTest implements RewriteTest {
     void anyOldVersion() {
         rewriteRun(spec -> spec.recipe(
             new ChangeComponent(
-              "\\$CI_SERVER_FQDN/components/opentofu/full-pipeline",
+              "some-component",
               ".+",
-              "$CI_SERVER_FQDN/components/opentofu/validate-plan-apply",
+              "other-component",
               "0.10.0"
             )),
           //language=yaml
           yaml(
             """
               include:
-                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                - component: some-component@0.10.0
               """,
             """
               include:
-                - component: $CI_SERVER_FQDN/components/opentofu/validate-plan-apply@0.10.0
+                - component: other-component@0.10.0
               """,
             source -> source.path(".gitlab-ci.yml")
           )
@@ -75,20 +123,20 @@ class ChangeComponentTest implements RewriteTest {
     void matchedOldVersion() {
         rewriteRun(spec -> spec.recipe(
             new ChangeComponent(
-              "\\$CI_SERVER_FQDN/components/opentofu/full-pipeline",
+              "some-component",
               "1.+",
-              "$CI_SERVER_FQDN/components/opentofu/full-pipeline",
+              "other-component",
               "2.0"
             )),
           //language=yaml
           yaml(
             """
               include:
-                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@1.0
+                - component: some-component@1.0
               """,
             """
               include:
-                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@2.0
+                - component: other-component@2.0
               """,
             source -> source.path(".gitlab-ci.yml")
           )
@@ -99,16 +147,36 @@ class ChangeComponentTest implements RewriteTest {
     void mismatchedOldVersion() {
         rewriteRun(spec -> spec.recipe(
             new ChangeComponent(
-              "\\$CI_SERVER_FQDN/components/opentofu/full-pipeline",
+              "some-component",
               "1.+",
-              "$CI_SERVER_FQDN/components/opentofu/full-pipeline",
+              "other-component",
               "2.0"
             )),
           //language=yaml
           yaml(
             """
               include:
-                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@2.0
+                - component: some-component@2.0
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void mismatchedComponent() {
+        rewriteRun(spec -> spec.recipe(
+            new ChangeComponent(
+              "some-component",
+              "1.+",
+              "other-component",
+              "2.0"
+            )),
+          //language=yaml
+          yaml(
+            """
+              include:
+                - component: other-component@1.0
               """,
             source -> source.path(".gitlab-ci.yml")
           )

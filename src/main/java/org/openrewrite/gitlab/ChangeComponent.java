@@ -17,6 +17,7 @@ package org.openrewrite.gitlab;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
+import org.jspecify.annotations.Nullable;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
 import org.openrewrite.yaml.ChangeValue;
@@ -40,7 +41,9 @@ public class ChangeComponent extends Recipe {
 
     @Option(displayName = "New Component",
             description = "Name of the new component to use instead.",
-            example = "$CI_SERVER_FQDN/components/opentofu/full-pipeline")
+            example = "$CI_SERVER_FQDN/components/opentofu/full-pipeline",
+            required = false)
+    @Nullable
     String newComponent;
 
     @Option(displayName = "New Component version",
@@ -63,7 +66,7 @@ public class ChangeComponent extends Recipe {
         return Collections.singletonList(
                 new ChangeValue(
                         String.format("$.include[?(@.component =~ '%s@%s')].component", oldComponent, oldComponentVersion),
-                        newComponent + "@" + newComponentVersion,
+                        (newComponent == null ? oldComponent : newComponent) + "@" + newComponentVersion,
                         ".gitlab-ci.yml")
         );
     }
