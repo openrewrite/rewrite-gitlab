@@ -27,7 +27,7 @@ class ChangeComponentTest implements RewriteTest {
     void updateTemplate() {
         rewriteRun(spec -> spec.recipe(
             new ChangeComponent(
-              "$CI_SERVER_FQDN/components/opentofu/full-pipeline",
+              "\\$CI_SERVER_FQDN/components/opentofu/full-pipeline",
               "0.10.0",
               "$CI_SERVER_FQDN/components/opentofu/validate-plan-apply",
               "0.10.0"
