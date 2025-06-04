@@ -46,4 +46,72 @@ class ChangeComponentTest implements RewriteTest {
           )
         );
     }
+
+    @Test
+    void anyOldVersion() {
+        rewriteRun(spec -> spec.recipe(
+            new ChangeComponent(
+              "\\$CI_SERVER_FQDN/components/opentofu/full-pipeline",
+              ".+",
+              "$CI_SERVER_FQDN/components/opentofu/validate-plan-apply",
+              "0.10.0"
+            )),
+          //language=yaml
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+              """,
+            """
+              include:
+                - component: $CI_SERVER_FQDN/components/opentofu/validate-plan-apply@0.10.0
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void matchedOldVersion() {
+        rewriteRun(spec -> spec.recipe(
+            new ChangeComponent(
+              "\\$CI_SERVER_FQDN/components/opentofu/full-pipeline",
+              "1.+",
+              "$CI_SERVER_FQDN/components/opentofu/full-pipeline",
+              "2.0"
+            )),
+          //language=yaml
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@1.0
+              """,
+            """
+              include:
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@2.0
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void mismatchedOldVersion() {
+        rewriteRun(spec -> spec.recipe(
+            new ChangeComponent(
+              "\\$CI_SERVER_FQDN/components/opentofu/full-pipeline",
+              "1.+",
+              "$CI_SERVER_FQDN/components/opentofu/full-pipeline",
+              "2.0"
+            )),
+          //language=yaml
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@2.0
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
 }
