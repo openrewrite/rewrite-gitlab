@@ -33,9 +33,9 @@ public class ChangeComponent extends Recipe {
             example = "$CI_SERVER_FQDN/components/opentofu/full-pipeline")
     String oldComponent;
 
-    @Option(displayName = "Old Component Version",
-        description = "Version of the existing component to use match.",
-        example = "0.10.0")
+    @Option(displayName = "Old Component version",
+            description = "Version of the existing component to use match.",
+            example = "0.10.0")
     String oldComponentVersion;
 
     @Option(displayName = "New Component",
@@ -43,9 +43,9 @@ public class ChangeComponent extends Recipe {
             example = "$CI_SERVER_FQDN/components/opentofu/full-pipeline")
     String newComponent;
 
-    @Option(displayName = "New Component Version",
-        description = "Version of the new component to use instead.",
-        example = "0.10.0")
+    @Option(displayName = "New Component version",
+            description = "Version of the new component to use instead.",
+            example = "0.10.0")
     String newComponentVersion;
 
     @Override
@@ -60,11 +60,9 @@ public class ChangeComponent extends Recipe {
 
     @Override
     public List<Recipe> getRecipeList() {
-        String oldComponentTemplate = oldComponent + "@" + oldComponentVersion;
-
         return Collections.singletonList(
                 new ChangeValue(
-                        "$.include[?(@.component =~ '" + oldComponentTemplate + "(?:@.+)?')].component",
+                        String.format("$.include[?(@.component =~ '%s@%s')].component", oldComponent, oldComponentVersion),
                         newComponent + "@" + newComponentVersion,
                         ".gitlab-ci.yml")
         );
