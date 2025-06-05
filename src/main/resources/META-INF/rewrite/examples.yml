@@ -65,6 +65,24 @@ examples:
     language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.ChangeComponent
+examples:
+- description: ''
+  parameters:
+  - some-component
+  - 0.10.0
+  - other-component
+  - 1.0.0
+  sources:
+  - before: |
+      include:
+        - component: some-component@0.10.0
+    after: |
+      include:
+        - component: other-component@1.0.0
+    language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.ChangeTemplate
 examples:
 - description: ''
