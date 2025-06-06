@@ -27,7 +27,7 @@ import static org.openrewrite.yaml.Assertions.yaml;
 class AddStagesTest implements RewriteTest {
     @Override
     public void defaults(RecipeSpec spec) {
-        spec.recipe(new AddStages(List.of("build", "test", "deploy"), false));
+        spec.recipe(new AddStages(List.of("build", "test", "deploy"), false, null));
     }
 
     @DocumentExample
@@ -74,7 +74,7 @@ class AddStagesTest implements RewriteTest {
         //language=yaml
         rewriteRun(
           spec ->
-            spec.recipe(new AddStages(List.of("build", "test", "deploy"), true)),
+            spec.recipe(new AddStages(List.of("build", "test", "deploy"), true, null)),
           yaml(
             """
               stages:

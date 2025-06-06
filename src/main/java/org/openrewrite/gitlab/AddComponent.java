@@ -21,6 +21,7 @@ import org.jspecify.annotations.Nullable;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
 import org.openrewrite.yaml.MergeYaml;
+import org.openrewrite.yaml.MergeYaml.InsertMode;
 
 import java.util.Collections;
 import java.util.List;
@@ -44,6 +45,13 @@ public class AddComponent extends Recipe {
             required = false)
     @Nullable
     List<String> inputs;
+
+    @Option(displayName = "Insert mode",
+            description = "Choose an insertion point when multiple mappings exist. Default is `Last`.",
+            valid = {"Before", "After", "Last"},
+            required = false)
+    @Nullable
+    InsertMode insertMode;
 
     @Override
     public String getDisplayName() {
@@ -78,7 +86,7 @@ public class AddComponent extends Recipe {
                         false,
                         "component",
                         ".gitlab-ci.yml",
-                        null,
+                        insertMode,
                         null,
                         null)
         );
