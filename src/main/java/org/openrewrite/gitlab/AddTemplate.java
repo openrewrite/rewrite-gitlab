@@ -17,7 +17,6 @@ package org.openrewrite.gitlab;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
-
 import org.jspecify.annotations.Nullable;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;

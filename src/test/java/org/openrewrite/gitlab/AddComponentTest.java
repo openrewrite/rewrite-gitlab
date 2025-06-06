@@ -33,8 +33,7 @@ class AddComponentTest implements RewriteTest {
           new AddComponent(
             "$CI_SERVER_FQDN/components/opentofu/full-pipeline",
             "0.10.0",
-            List.of("version: 0.10.0", "opentofu_version: 1.6.1"), 
-            null));
+            List.of("version: 0.10.0", "opentofu_version: 1.6.1"),
     }
 
     @DocumentExample
