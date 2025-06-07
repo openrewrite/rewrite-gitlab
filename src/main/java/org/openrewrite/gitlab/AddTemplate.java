@@ -17,9 +17,11 @@ package org.openrewrite.gitlab;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
+import org.jspecify.annotations.Nullable;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
 import org.openrewrite.yaml.MergeYaml;
+import org.openrewrite.yaml.MergeYaml.InsertMode;
 
 import java.util.Collections;
 import java.util.List;
@@ -32,6 +34,13 @@ public class AddTemplate extends Recipe {
             description = "Name of the template to use instead.",
             example = "OpenTofu/Base.gitlab-ci.yml")
     String newTemplate;
+
+    @Option(displayName = "Insert mode",
+            description = "Choose an insertion point when multiple mappings exist. Default is `Last`.",
+            valid = {"Before", "After", "Last"},
+            required = false)
+    @Nullable
+    InsertMode insertMode;
 
     @Override
     public String getDisplayName() {
@@ -52,7 +61,7 @@ public class AddTemplate extends Recipe {
                         false,
                         "template",
                         ".gitlab-ci.yml",
-                        null,
+                        insertMode,
                         null,
                         null)
         );

@@ -26,7 +26,7 @@ class AddTemplateTest implements RewriteTest {
 
     @Override
     public void defaults(RecipeSpec spec) {
-        spec.recipe(new AddTemplate("Jobs/SAST.gitlab-ci.yml"));
+        spec.recipe(new AddTemplate("Jobs/SAST.gitlab-ci.yml", null));
     }
 
     @DocumentExample
