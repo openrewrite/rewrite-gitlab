@@ -20,6 +20,7 @@ examples:
   - $CI_SERVER_FQDN/components/opentofu/full-pipeline
   - 0.10.0
   - 'List.of("version: 0.10.0", "opentofu_version: 1.6.1")'
+  - 'null'
   sources:
   - before: |
       include:
@@ -40,6 +41,7 @@ examples:
   parameters:
   - List.of("build", "test", "deploy")
   - 'false'
+  - 'null'
   sources:
   - after: |
       stages:
@@ -54,6 +56,7 @@ examples:
 - description: ''
   parameters:
   - Jobs/SAST.gitlab-ci.yml
+  - 'null'
   sources:
   - before: |
       include:
