@@ -26,8 +26,8 @@ import org.openrewrite.yaml.MergeYaml.InsertMode;
 import java.util.Collections;
 import java.util.List;
 
-@Value
 @EqualsAndHashCode(callSuper = false)
+@Value
 public class AddComponent extends Recipe {
     @Option(displayName = "Component",
             description = "Name of the component to use add.",

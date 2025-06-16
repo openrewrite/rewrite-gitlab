@@ -24,8 +24,8 @@ import org.openrewrite.yaml.search.FindKey;
 import java.util.Collections;
 import java.util.List;
 
-@Value
 @EqualsAndHashCode(callSuper = false)
+@Value
 public class FindTemplate extends Recipe {
 
     @Option(displayName = "Template",

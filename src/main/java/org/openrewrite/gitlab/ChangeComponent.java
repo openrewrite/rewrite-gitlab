@@ -25,8 +25,8 @@ import org.openrewrite.yaml.ChangeValue;
 import java.util.Collections;
 import java.util.List;
 
-@Value
 @EqualsAndHashCode(callSuper = false)
+@Value
 public class ChangeComponent extends Recipe {
 
     @Option(displayName = "Old Component",

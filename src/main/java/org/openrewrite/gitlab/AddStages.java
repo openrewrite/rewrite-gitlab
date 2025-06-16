@@ -26,8 +26,8 @@ import org.openrewrite.yaml.MergeYaml.InsertMode;
 import java.util.Collections;
 import java.util.List;
 
-@Value
 @EqualsAndHashCode(callSuper = false)
+@Value
 public class AddStages extends Recipe {
     @Option(displayName = "Stages",
             description = "Stages to add.",

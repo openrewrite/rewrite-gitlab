@@ -24,8 +24,8 @@ import org.openrewrite.yaml.ChangeValue;
 import java.util.Collections;
 import java.util.List;
 
-@Value
 @EqualsAndHashCode(callSuper = false)
+@Value
 public class ChangeTemplate extends Recipe {
 
     @Option(displayName = "Template",

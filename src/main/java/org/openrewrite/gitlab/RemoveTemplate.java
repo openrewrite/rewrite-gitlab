@@ -23,8 +23,8 @@ import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
 import org.openrewrite.yaml.DeleteKey;
 
-@Value
 @EqualsAndHashCode
+@Value
 public class RemoveTemplate extends Recipe {
 
     @Option(displayName = "Template",
