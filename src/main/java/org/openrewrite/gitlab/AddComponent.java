@@ -23,8 +23,9 @@ import org.openrewrite.Recipe;
 import org.openrewrite.yaml.MergeYaml;
 import org.openrewrite.yaml.MergeYaml.InsertMode;
 
-import java.util.Collections;
 import java.util.List;
+
+import static java.util.Collections.singletonList;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
@@ -78,7 +79,7 @@ public class AddComponent extends Recipe {
             inputs.forEach(input -> includeBlock.append("     ").append(input).append("\n"));
         }
 
-        return Collections.singletonList(
+        return singletonList(
                 new MergeYaml(
                         "$",
                         //language=yml
