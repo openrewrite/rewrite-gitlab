@@ -35,8 +35,7 @@ public class AddStages extends Recipe {
             example = "build,test,deploy")
     List<String> stages;
 
-    @Option(
-            displayName = "Accept theirs",
+    @Option(displayName = "Accept theirs",
             description = "When the set of stages would conflict, prefer the original value.",
             required = false)
     @Nullable
@@ -66,7 +65,7 @@ public class AddStages extends Recipe {
                         "$",
                         //language=yml
                         "stages:\n" +
-                                "  - " + String.join("\n  - ", stages),
+                                ((stages == null) ? "" : ("  - " + String.join("\n  - ", stages))),
                         acceptTheirs,
                         "stages",
                         ".gitlab-ci.yml",
