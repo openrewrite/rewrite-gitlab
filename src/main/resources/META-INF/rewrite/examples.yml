@@ -15,7 +15,7 @@
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.AddComponent
 examples:
-- description: ''
+- description: '`AddComponentTest#addToExistingList`'
   parameters:
   - $CI_SERVER_FQDN/components/opentofu/full-pipeline
   - 0.10.0
@@ -32,12 +32,13 @@ examples:
           inputs:
             version: 0.10.0
             opentofu_version: 1.6.1
+    path: .gitlab-ci.yml
     language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.AddStages
 examples:
-- description: ''
+- description: '`AddStagesTest#addNew`'
   parameters:
   - List.of("build", "test", "deploy")
   - 'false'
@@ -48,12 +49,13 @@ examples:
         - build
         - test
         - deploy
+    path: .gitlab-ci.yml
     language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.AddTemplate
 examples:
-- description: ''
+- description: '`AddTemplateTest#addToExistingList`'
   parameters:
   - Jobs/SAST.gitlab-ci.yml
   - 'null'
@@ -65,12 +67,13 @@ examples:
       include:
         - template: Gradle.gitlab-ci.yml
         - template: Jobs/SAST.gitlab-ci.yml
+    path: .gitlab-ci.yml
     language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.ChangeComponent
 examples:
-- description: ''
+- description: '`ChangeComponentTest#updateComponent`'
   parameters:
   - some-component
   - 0.10.0
@@ -83,12 +86,13 @@ examples:
     after: |
       include:
         - component: other-component@1.0.0
+    path: .gitlab-ci.yml
     language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.ChangeTemplate
 examples:
-- description: ''
+- description: '`ChangeTemplateTest#updateTemplate`'
   parameters:
   - Terraform/Base.gitlab-ci.yml
   - OpenTofu/Base.gitlab-ci.yml
@@ -99,12 +103,13 @@ examples:
     after: |
       include:
         - template: OpenTofu/Base.gitlab-ci.yml
+    path: .gitlab-ci.yml
     language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.RemoveTemplate
 examples:
-- description: ''
+- description: '`RemoveTemplateTest#removeTemplate`'
   parameters:
   - Terraform/Base.gitlab-ci.yml
   sources:
@@ -115,12 +120,13 @@ examples:
     after: |
       include:
         - template: OpenTofu/Base.gitlab-ci.yml
+    path: .gitlab-ci.yml
     language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.search.FindComponent
 examples:
-- description: ''
+- description: '`FindComponentTest#exists`'
   parameters:
   - \$CI_SERVER_FQDN/components/opentofu/full-pipeline
   sources:
@@ -136,12 +142,13 @@ examples:
           inputs:
             version: 0.10.0
             opentofu_version: 1.6.1
+    path: .gitlab-ci.yml
     language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.search.FindTemplate
 examples:
-- description: ''
+- description: '`FindTemplateTest#exists`'
   parameters:
   - Gradle.gitlab-ci.yml
   sources:
@@ -151,4 +158,5 @@ examples:
     after: |
       include:
         - ~~>template: Gradle.gitlab-ci.yml
+    path: .gitlab-ci.yml
     language: yaml
