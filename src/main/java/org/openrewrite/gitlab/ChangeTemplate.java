@@ -39,15 +39,9 @@ public class ChangeTemplate extends Recipe {
             example = "OpenTofu/Base.gitlab-ci.yml")
     String newTemplate;
 
-    @Override
-    public String getDisplayName() {
-        return "Change GitLab template";
-    }
+    String displayName = "Change GitLab template";
 
-    @Override
-    public String getDescription() {
-        return "Change a GitLab template in use.";
-    }
+    String description = "Change a GitLab template in use.";
 
     @Override
     public List<Recipe> getRecipeList() {

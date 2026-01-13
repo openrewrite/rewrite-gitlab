@@ -34,15 +34,9 @@ public class FindTemplate extends Recipe {
             example = "Terraform/Base.gitlab-ci.yml")
     String template;
 
-    @Override
-    public String getDisplayName() {
-        return "Find GitLab Template";
-    }
+    String displayName = "Find GitLab Template";
 
-    @Override
-    public String getDescription() {
-        return "Find a GitLab Template in use.";
-    }
+    String description = "Find a GitLab Template in use.";
 
     @Override
     public List<Recipe> getRecipeList() {

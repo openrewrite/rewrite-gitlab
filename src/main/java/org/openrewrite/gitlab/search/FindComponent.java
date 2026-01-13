@@ -34,15 +34,9 @@ public class FindComponent extends Recipe {
             example = "$CI_SERVER_FQDN/components/opentofu/full-pipeline")
     String component;
 
-    @Override
-    public String getDisplayName() {
-        return "Find GitLab Component";
-    }
+    String displayName = "Find GitLab Component";
 
-    @Override
-    public String getDescription() {
-        return "Find a GitLab Component in use.";
-    }
+    String description = "Find a GitLab Component in use.";
 
     @Override
     public List<Recipe> getRecipeList() {

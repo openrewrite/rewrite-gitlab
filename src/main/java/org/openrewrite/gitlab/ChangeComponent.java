@@ -52,15 +52,9 @@ public class ChangeComponent extends Recipe {
             example = "0.10.0")
     String newComponentVersion;
 
-    @Override
-    public String getDisplayName() {
-        return "Change GitLab Component";
-    }
+    String displayName = "Change GitLab Component";
 
-    @Override
-    public String getDescription() {
-        return "Change a GitLab Component in use.";
-    }
+    String description = "Change a GitLab Component in use.";
 
     @Override
     public List<Recipe> getRecipeList() {

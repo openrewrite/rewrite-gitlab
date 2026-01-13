@@ -32,15 +32,9 @@ public class RemoveTemplate extends Recipe {
             example = "Terraform/Base.gitlab-ci.yml")
     String oldTemplate;
 
-    @Override
-    public String getDisplayName() {
-        return "Remove GitLab template";
-    }
+    String displayName = "Remove GitLab template";
 
-    @Override
-    public String getDescription() {
-        return "Remove a GitLab template from use.";
-    }
+    String description = "Remove a GitLab template from use.";
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {

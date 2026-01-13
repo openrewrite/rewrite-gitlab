@@ -54,15 +54,9 @@ public class AddComponent extends Recipe {
     @Nullable
     InsertMode insertMode;
 
-    @Override
-    public String getDisplayName() {
-        return "Add GitLab component";
-    }
+    String displayName = "Add GitLab component";
 
-    @Override
-    public String getDescription() {
-        return "Add a GitLab component to an existing list, or add a new list where none was present.";
-    }
+    String description = "Add a GitLab component to an existing list, or add a new list where none was present.";
 
     @Override
     public List<Recipe> getRecipeList() {

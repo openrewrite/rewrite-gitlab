@@ -48,15 +48,9 @@ public class AddStages extends Recipe {
     @Nullable
     InsertMode insertMode;
 
-    @Override
-    public String getDisplayName() {
-        return "Add GitLab stages";
-    }
+    String displayName = "Add GitLab stages";
 
-    @Override
-    public String getDescription() {
-        return "Add or Update the set of stages defined in `.gitlab-ci.yml`.";
-    }
+    String description = "Add or Update the set of stages defined in `.gitlab-ci.yml`.";
 
     @Override
     public List<Recipe> getRecipeList() {
