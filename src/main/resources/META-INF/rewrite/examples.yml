@@ -146,6 +146,42 @@ examples:
     language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.search.FindDeprecatedExcept
+examples:
+- description: '`FindDeprecatedExceptTest#findExcept`'
+  sources:
+  - before: |
+      deploy_job:
+        script: make deploy
+        except:
+          - tags
+    after: |
+      deploy_job:
+        script: make deploy
+        ~~>except:
+          - tags
+    path: .gitlab-ci.yml
+    language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.search.FindDeprecatedOnly
+examples:
+- description: '`FindDeprecatedOnlyTest#findOnly`'
+  sources:
+  - before: |
+      build_job:
+        script: make build
+        only:
+          - main
+    after: |
+      build_job:
+        script: make build
+        ~~>only:
+          - main
+    path: .gitlab-ci.yml
+    language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.search.FindTemplate
 examples:
 - description: '`FindTemplateTest#exists`'
