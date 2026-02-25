@@ -70,6 +70,22 @@ class AddStagesTest implements RewriteTest {
     }
 
     @Test
+    void noopWhenAlreadyPresent() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              stages:
+                - build
+                - test
+                - deploy
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void retainExisting() {
         //language=yaml
         rewriteRun(
