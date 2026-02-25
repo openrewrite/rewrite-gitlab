@@ -98,6 +98,24 @@ class AddCacheTest implements RewriteTest {
     }
 
     @Test
+    void noopWhenAlreadyPresent() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              default:
+                cache:
+                  key: $CI_COMMIT_REF_SLUG
+                  paths:
+                    - .cache/
+                    - vendor/
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void mergeIntoExistingDefault() {
         //language=yaml
         rewriteRun(

@@ -29,6 +29,37 @@ class BestPracticesTest implements RewriteTest {
           "org.openrewrite.gitlab.BestPractices");
     }
 
+    @Test
+    void noopWhenAlreadyPresent() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              stages:
+                - build
+                - test
+              workflow:
+                rules:
+                  - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+                  - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+                    when: never
+                  - if: $CI_COMMIT_BRANCH
+              default:
+                interruptible: true
+                retry:
+                  max: 2
+                  when:
+                    - runner_system_failure
+                    - stuck_or_timeout_failure
+                artifacts:
+                  expire_in: 1 week
+                timeout: 1 hour
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
     @DocumentExample
     @Test
     void appliesBestPractices() {
