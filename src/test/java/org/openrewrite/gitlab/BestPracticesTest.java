@@ -29,11 +29,17 @@ class BestPracticesTest implements RewriteTest {
           "org.openrewrite.gitlab.BestPractices");
     }
 
+    @DocumentExample
     @Test
-    void noopWhenAlreadyPresent() {
+    void appliesBestPractices() {
         //language=yaml
         rewriteRun(
           yaml(
+            """
+              stages:
+                - build
+                - test
+              """,
             """
               stages:
                 - build
@@ -60,17 +66,11 @@ class BestPracticesTest implements RewriteTest {
         );
     }
 
-    @DocumentExample
     @Test
-    void appliesBestPractices() {
+    void noopWhenAlreadyPresent() {
         //language=yaml
         rewriteRun(
           yaml(
-            """
-              stages:
-                - build
-                - test
-              """,
             """
               stages:
                 - build

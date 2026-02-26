@@ -13,6 +13,43 @@
 # limitations under the License.
 ---
 type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.AddArtifactsExpireIn
+examples:
+- description: '`AddArtifactsExpireInTest#addToDefault`'
+  parameters:
+  - 1 week
+  - 'null'
+  - 'null'
+  sources:
+  - after: |
+      default:
+        artifacts:
+          expire_in: 1 week
+    path: .gitlab-ci.yml
+    language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.AddCache
+examples:
+- description: '`AddCacheTest#addCacheToDefault`'
+  parameters:
+  - $CI_COMMIT_REF_SLUG
+  - List.of(".cache/", "vendor/")
+  - 'null'
+  - 'null'
+  - 'null'
+  sources:
+  - after: |
+      default:
+        cache:
+          key: $CI_COMMIT_REF_SLUG
+          paths:
+            - .cache/
+            - vendor/
+    path: .gitlab-ci.yml
+    language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.AddComponent
 examples:
 - description: '`AddComponentTest#addToExistingList`'
@@ -32,6 +69,55 @@ examples:
           inputs:
             version: 0.10.0
             opentofu_version: 1.6.1
+    path: .gitlab-ci.yml
+    language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.AddDefaultKeyword
+examples:
+- description: '`AddDefaultKeywordTest#addToDefault`'
+  parameters:
+  - image
+  - ruby:3.0
+  - 'null'
+  sources:
+  - after: |
+      default:
+        image: ruby:3.0
+    path: .gitlab-ci.yml
+    language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.AddInterruptible
+examples:
+- description: '`AddInterruptibleTest#addToDefault`'
+  parameters:
+  - 'null'
+  - 'null'
+  sources:
+  - after: |
+      default:
+        interruptible: true
+    path: .gitlab-ci.yml
+    language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.AddRetry
+examples:
+- description: '`AddRetryTest#addRetryWithWhen`'
+  parameters:
+  - '2'
+  - List.of("runner_system_failure", "stuck_or_timeout_failure")
+  - 'null'
+  - 'null'
+  sources:
+  - after: |
+      default:
+        retry:
+          max: 2
+          when:
+            - runner_system_failure
+            - stuck_or_timeout_failure
     path: .gitlab-ci.yml
     language: yaml
 ---
@@ -67,6 +153,75 @@ examples:
       include:
         - template: Gradle.gitlab-ci.yml
         - template: Jobs/SAST.gitlab-ci.yml
+    path: .gitlab-ci.yml
+    language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.AddTimeout
+examples:
+- description: '`AddTimeoutTest#addToDefault`'
+  parameters:
+  - 1 hour
+  - 'null'
+  - 'null'
+  sources:
+  - after: |
+      default:
+        timeout: 1 hour
+    path: .gitlab-ci.yml
+    language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.AddWorkflowRules
+examples:
+- description: '`AddWorkflowRulesTest#addWorkflowRules`'
+  parameters:
+  - |-
+    "- if: $CI_PIPELINE_SOURCE == 'merge_request_event'\n" +
+                "- if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS\n" +
+                "  when: never\n" +
+                "- if: $CI_COMMIT_BRANCH"
+  - 'null'
+  sources:
+  - after: |
+      workflow:
+        rules:
+          - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+          - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+            when: never
+          - if: $CI_COMMIT_BRANCH
+    path: .gitlab-ci.yml
+    language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.BestPractices
+examples:
+- description: '`BestPracticesTest#appliesBestPractices`'
+  sources:
+  - before: |
+      stages:
+        - build
+        - test
+    after: |
+      stages:
+        - build
+        - test
+      workflow:
+        rules:
+          - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+          - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+            when: never
+          - if: $CI_COMMIT_BRANCH
+      default:
+        interruptible: true
+        retry:
+          max: 2
+          when:
+            - runner_system_failure
+            - stuck_or_timeout_failure
+        artifacts:
+          expire_in: 1 week
+        timeout: 1 hour
     path: .gitlab-ci.yml
     language: yaml
 ---

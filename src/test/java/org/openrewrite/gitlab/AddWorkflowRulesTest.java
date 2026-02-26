@@ -26,10 +26,11 @@ class AddWorkflowRulesTest implements RewriteTest {
     @Override
     public void defaults(RecipeSpec spec) {
         spec.recipe(new AddWorkflowRules(
-          "- if: $CI_PIPELINE_SOURCE == 'merge_request_event'\n" +
-            "- if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS\n" +
-            "  when: never\n" +
-            "- if: $CI_COMMIT_BRANCH",
+          """
+          - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+          - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+            when: never
+          - if: $CI_COMMIT_BRANCH""",
           null));
     }
 
