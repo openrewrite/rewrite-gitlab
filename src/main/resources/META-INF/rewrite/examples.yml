@@ -279,6 +279,44 @@ examples:
     language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.MigrateOnlyToRules
+examples:
+- description: '`MigrateOnlyToRulesTest#migrateSimpleBranchRef`'
+  sources:
+  - before: |
+      build_job:
+        script: make build
+        only:
+          - main
+    after: |
+      build_job:
+        script: make build
+        rules:
+          - if: $CI_COMMIT_BRANCH == 'main'
+    path: .gitlab-ci.yml
+    language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.MigrateExceptToRules
+examples:
+- description: '`MigrateExceptToRulesTest#migrateSimpleExcept`'
+  sources:
+  - before: |
+      build_job:
+        script: make build
+        except:
+          - tags
+    after: |
+      build_job:
+        script: make build
+        rules:
+          - if: $CI_COMMIT_TAG
+            when: never
+          - when: always
+    path: .gitlab-ci.yml
+    language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.search.FindComponent
 examples:
 - description: '`FindComponentTest#exists`'
