@@ -22,10 +22,10 @@ import org.openrewrite.test.RewriteTest;
 
 import static org.openrewrite.yaml.Assertions.yaml;
 
-class MigrateOnlyToRulesTest implements RewriteTest {
+class MigrateToRulesTest implements RewriteTest {
     @Override
     public void defaults(RecipeSpec spec) {
-        spec.recipe(new MigrateOnlyToRules());
+        spec.recipe(new MigrateToRules());
     }
 
     @DocumentExample
@@ -150,15 +150,74 @@ class MigrateOnlyToRulesTest implements RewriteTest {
     }
 
     @Test
-    void noopWhenRulesAlreadyPresent() {
+    void migrateSimpleExcept() {
         rewriteRun(
           //language=yaml
           yaml(
             """
               build_job:
                 script: make build
+                except:
+                  - tags
+              """,
+            """
+              build_job:
+                script: make build
                 rules:
-                  - if: $CI_COMMIT_BRANCH == "main"
+                  - if: $CI_COMMIT_TAG
+                    when: never
+                  - when: always
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateMultipleExceptRefs() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              deploy_job:
+                script: make deploy
+                except:
+                  - schedules
+                  - triggers
+              """,
+            """
+              deploy_job:
+                script: make deploy
+                rules:
+                  - if: $CI_PIPELINE_SOURCE == 'schedule'
+                    when: never
+                  - if: $CI_PIPELINE_SOURCE == 'trigger'
+                    when: never
+                  - when: always
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateExceptBranchName() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              test_job:
+                script: make test
+                except:
+                  - main
+              """,
+            """
+              test_job:
+                script: make test
+                rules:
+                  - if: $CI_COMMIT_BRANCH == 'main'
+                    when: never
+                  - when: always
               """,
             source -> source.path(".gitlab-ci.yml")
           )
@@ -192,6 +251,22 @@ class MigrateOnlyToRulesTest implements RewriteTest {
     }
 
     @Test
+    void noopWhenRulesAlreadyPresent() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              build_job:
+                script: make build
+                rules:
+                  - if: $CI_COMMIT_BRANCH == "main"
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void noopWhenNotPresent() {
         rewriteRun(
           //language=yaml
@@ -206,7 +281,7 @@ class MigrateOnlyToRulesTest implements RewriteTest {
     }
 
     @Test
-    void skipComplexObjectForm() {
+    void skipComplexOnlyForm() {
         rewriteRun(
           //language=yaml
           yaml(
@@ -214,6 +289,25 @@ class MigrateOnlyToRulesTest implements RewriteTest {
               build_job:
                 script: make build
                 only:
+                  refs:
+                    - main
+                  variables:
+                    - $DEPLOY
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void skipComplexExceptForm() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              build_job:
+                script: make build
+                except:
                   refs:
                     - main
                   variables:

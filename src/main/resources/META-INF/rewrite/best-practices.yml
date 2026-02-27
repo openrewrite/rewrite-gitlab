@@ -27,8 +27,7 @@ tags:
   - gitlab
   - ci
 recipeList:
-  - org.openrewrite.gitlab.MigrateOnlyToRules
-  - org.openrewrite.gitlab.MigrateExceptToRules
+  - org.openrewrite.gitlab.MigrateToRules
   - org.openrewrite.gitlab.AddWorkflowRules:
       rules: |-
         - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
@@ -59,16 +58,3 @@ tags:
 recipeList:
   - org.openrewrite.gitlab.search.FindDeprecatedOnly
   - org.openrewrite.gitlab.search.FindDeprecatedExcept
----
-type: specs.openrewrite.org/v1beta/recipe
-name: org.openrewrite.gitlab.MigrateDeprecatedSyntax
-displayName: Migrate deprecated GitLab CI syntax
-description: >-
-  Migrate deprecated `only` and `except` keywords to equivalent `rules`
-  in `.gitlab-ci.yml`.
-tags:
-  - gitlab
-  - ci
-recipeList:
-  - org.openrewrite.gitlab.MigrateOnlyToRules
-  - org.openrewrite.gitlab.MigrateExceptToRules
