@@ -17,9 +17,8 @@ package org.openrewrite.gitlab;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
-import org.openrewrite.ExecutionContext;
-import org.openrewrite.Recipe;
-import org.openrewrite.TreeVisitor;
+import org.openrewrite.*;
+import org.openrewrite.internal.ListUtils;
 import org.openrewrite.yaml.YamlIsoVisitor;
 import org.openrewrite.yaml.YamlParser;
 import org.openrewrite.yaml.tree.Yaml;
@@ -39,77 +38,104 @@ public class MigrateOnlyToRules extends Recipe {
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
-        return new YamlIsoVisitor<ExecutionContext>() {
-            @Override
-            public Yaml.Documents visitDocuments(Yaml.Documents documents, ExecutionContext ctx) {
-                if (!documents.getSourcePath().endsWith(".gitlab-ci.yml")) {
-                    return documents;
-                }
-                return super.visitDocuments(documents, ctx);
-            }
+        return Preconditions.check(
+                new FindSourceFiles("**/.gitlab-ci.yml"),
+                new YamlIsoVisitor<ExecutionContext>() {
+                    @Override
+                    public Yaml.Mapping visitMapping(Yaml.Mapping mapping, ExecutionContext ctx) {
+                        Yaml.Mapping m = super.visitMapping(mapping, ctx);
 
-            @Override
-            public Yaml.Mapping visitMapping(Yaml.Mapping mapping, ExecutionContext ctx) {
-                Yaml.Mapping m = super.visitMapping(mapping, ctx);
+                        Yaml.Mapping.Entry onlyEntry = null;
+                        Yaml.Mapping.Entry exceptEntry = null;
+                        boolean hasRules = false;
 
-                int onlyIdx = -1;
-                boolean hasRules = false;
-                boolean hasExcept = false;
+                        for (Yaml.Mapping.Entry entry : m.getEntries()) {
+                            String key = entry.getKey().getValue();
+                            if ("only".equals(key)) {
+                                onlyEntry = entry;
+                            } else if ("rules".equals(key)) {
+                                hasRules = true;
+                            } else if ("except".equals(key)) {
+                                exceptEntry = entry;
+                            }
+                        }
 
-                for (int i = 0; i < m.getEntries().size(); i++) {
-                    String key = m.getEntries().get(i).getKey().getValue();
-                    if ("only".equals(key)) {
-                        onlyIdx = i;
-                    } else if ("rules".equals(key)) {
-                        hasRules = true;
-                    } else if ("except".equals(key)) {
-                        hasExcept = true;
+                        if (onlyEntry == null || hasRules) {
+                            return m;
+                        }
+
+                        if (!(onlyEntry.getValue() instanceof Yaml.Sequence)) {
+                            return m;
+                        }
+
+                        List<String> onlyRefs = extractRefs((Yaml.Sequence) onlyEntry.getValue());
+                        if (onlyRefs == null || onlyRefs.isEmpty()) {
+                            return m;
+                        }
+
+                        // Handle combined only+except
+                        List<String> exceptRefs = null;
+                        if (exceptEntry != null) {
+                            if (!(exceptEntry.getValue() instanceof Yaml.Sequence)) {
+                                return m;
+                            }
+                            exceptRefs = extractRefs((Yaml.Sequence) exceptEntry.getValue());
+                            if (exceptRefs == null) {
+                                return m;
+                            }
+                        }
+
+                        String entryPrefix = onlyEntry.getPrefix();
+                        String baseIndent = entryPrefix.contains("\n") ?
+                                entryPrefix.substring(entryPrefix.lastIndexOf('\n') + 1) : "  ";
+                        String seqIndent = baseIndent + "  ";
+                        String contentIndent = seqIndent + "  ";
+
+                        StringBuilder sb = new StringBuilder("rules:");
+
+                        // Except refs come first as 'when: never'
+                        if (exceptRefs != null && !exceptRefs.isEmpty()) {
+                            for (String ref : exceptRefs) {
+                                sb.append("\n").append(seqIndent).append("- if: ").append(refToCondition(ref));
+                                sb.append("\n").append(contentIndent).append("when: never");
+                            }
+                        }
+
+                        // Only refs as positive rules
+                        for (String ref : onlyRefs) {
+                            sb.append("\n").append(seqIndent).append("- if: ").append(refToCondition(ref));
+                        }
+
+                        Yaml.Mapping.Entry rulesEntry = parseRulesEntry(sb.toString(), onlyEntry.getPrefix());
+                        if (rulesEntry == null) {
+                            return m;
+                        }
+
+                        final Yaml.Mapping.Entry finalRulesEntry = rulesEntry;
+                        final boolean removeExcept = exceptEntry != null;
+                        return m.withEntries(ListUtils.map(m.getEntries(), entry -> {
+                            String key = entry.getKey().getValue();
+                            if ("only".equals(key)) {
+                                return finalRulesEntry;
+                            } else if (removeExcept && "except".equals(key)) {
+                                return null;
+                            }
+                            return entry;
+                        }));
                     }
                 }
+        );
+    }
 
-                if (onlyIdx < 0 || hasRules || hasExcept) {
-                    return m;
-                }
-
-                Yaml.Mapping.Entry onlyEntry = m.getEntries().get(onlyIdx);
-
-                if (!(onlyEntry.getValue() instanceof Yaml.Sequence)) {
-                    return m;
-                }
-
-                Yaml.Sequence seq = (Yaml.Sequence) onlyEntry.getValue();
-                List<String> refs = new ArrayList<>();
-                for (Yaml.Sequence.Entry seqEntry : seq.getEntries()) {
-                    if (!(seqEntry.getBlock() instanceof Yaml.Scalar)) {
-                        return m;
-                    }
-                    refs.add(((Yaml.Scalar) seqEntry.getBlock()).getValue());
-                }
-
-                if (refs.isEmpty()) {
-                    return m;
-                }
-
-                String entryPrefix = onlyEntry.getPrefix();
-                String baseIndent = entryPrefix.contains("\n") ?
-                        entryPrefix.substring(entryPrefix.lastIndexOf('\n') + 1) : "  ";
-                String seqIndent = baseIndent + "  ";
-
-                StringBuilder sb = new StringBuilder("rules:");
-                for (String ref : refs) {
-                    sb.append("\n").append(seqIndent).append("- if: ").append(refToCondition(ref));
-                }
-
-                Yaml.Mapping.Entry rulesEntry = parseRulesEntry(sb.toString(), onlyEntry.getPrefix());
-                if (rulesEntry == null) {
-                    return m;
-                }
-
-                List<Yaml.Mapping.Entry> newEntries = new ArrayList<>(m.getEntries());
-                newEntries.set(onlyIdx, rulesEntry);
-                return m.withEntries(newEntries);
+    static List<String> extractRefs(Yaml.Sequence seq) {
+        List<String> refs = new ArrayList<>();
+        for (Yaml.Sequence.Entry seqEntry : seq.getEntries()) {
+            if (!(seqEntry.getBlock() instanceof Yaml.Scalar)) {
+                return null;
             }
-        };
+            refs.add(((Yaml.Scalar) seqEntry.getBlock()).getValue());
+        }
+        return refs;
     }
 
     static Yaml.Mapping.Entry parseRulesEntry(String yamlString, String prefix) {

@@ -166,7 +166,7 @@ class MigrateOnlyToRulesTest implements RewriteTest {
     }
 
     @Test
-    void noopWhenBothOnlyAndExcept() {
+    void migrateCombinedOnlyAndExcept() {
         rewriteRun(
           //language=yaml
           yaml(
@@ -177,6 +177,14 @@ class MigrateOnlyToRulesTest implements RewriteTest {
                   - branches
                 except:
                   - main
+              """,
+            """
+              build_job:
+                script: make build
+                rules:
+                  - if: $CI_COMMIT_BRANCH == 'main'
+                    when: never
+                  - if: $CI_COMMIT_BRANCH
               """,
             source -> source.path(".gitlab-ci.yml")
           )
