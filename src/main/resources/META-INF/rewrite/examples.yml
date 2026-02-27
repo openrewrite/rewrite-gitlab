@@ -279,6 +279,24 @@ examples:
     language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.MigrateToRules
+examples:
+- description: '`MigrateToRulesTest#migrateSimpleBranchRef`'
+  sources:
+  - before: |
+      build_job:
+        script: make build
+        only:
+          - main
+    after: |
+      build_job:
+        script: make build
+        rules:
+          - if: $CI_COMMIT_BRANCH == 'main'
+    path: .gitlab-ci.yml
+    language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.search.FindComponent
 examples:
 - description: '`FindComponentTest#exists`'
