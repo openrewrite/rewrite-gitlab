@@ -121,14 +121,13 @@ public class MigrateToRules extends Recipe {
         if (rulesEntry == null) {
             return m;
         }
-
-        final Yaml.Mapping.Entry finalRulesEntry = rulesEntry;
-        final boolean removeExcept = exceptEntry != null;
+        boolean removeExcept = exceptEntry != null;
         return m.withEntries(ListUtils.map(m.getEntries(), entry -> {
             String key = entry.getKey().getValue();
             if ("only".equals(key)) {
-                return finalRulesEntry;
-            } else if (removeExcept && "except".equals(key)) {
+                return rulesEntry;
+            }
+            if (removeExcept && "except".equals(key)) {
                 return null;
             }
             return entry;
@@ -162,11 +161,9 @@ public class MigrateToRules extends Recipe {
         if (rulesEntry == null) {
             return m;
         }
-
-        final Yaml.Mapping.Entry finalRulesEntry = rulesEntry;
         return m.withEntries(ListUtils.map(m.getEntries(), entry -> {
             if ("except".equals(entry.getKey().getValue())) {
-                return finalRulesEntry;
+                return rulesEntry;
             }
             return entry;
         }));
