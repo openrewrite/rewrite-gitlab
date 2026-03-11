@@ -17,6 +17,7 @@ package org.openrewrite.gitlab;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
+import org.jspecify.annotations.Nullable;
 import org.openrewrite.*;
 import org.openrewrite.internal.ListUtils;
 import org.openrewrite.yaml.YamlIsoVisitor;
@@ -48,7 +49,6 @@ public class MigrateToRules extends Recipe {
 
                         Yaml.Mapping.Entry onlyEntry = null;
                         Yaml.Mapping.Entry exceptEntry = null;
-                        boolean hasRules = false;
 
                         for (Yaml.Mapping.Entry entry : m.getEntries()) {
                             String key = entry.getKey().getValue();
@@ -57,11 +57,11 @@ public class MigrateToRules extends Recipe {
                             } else if ("except".equals(key)) {
                                 exceptEntry = entry;
                             } else if ("rules".equals(key)) {
-                                hasRules = true;
+                                return m;
                             }
                         }
 
-                        if (hasRules || (onlyEntry == null && exceptEntry == null)) {
+                        if (onlyEntry == null && exceptEntry == null) {
                             return m;
                         }
 
@@ -75,7 +75,7 @@ public class MigrateToRules extends Recipe {
     }
 
     private static Yaml.Mapping migrateWithOnly(Yaml.Mapping m, Yaml.Mapping.Entry onlyEntry,
-                                                 Yaml.Mapping.Entry exceptEntry) {
+                                                 Yaml.Mapping.@Nullable Entry exceptEntry) {
         if (!(onlyEntry.getValue() instanceof Yaml.Sequence)) {
             return m;
         }
@@ -172,7 +172,7 @@ public class MigrateToRules extends Recipe {
         }));
     }
 
-    static List<String> extractRefs(Yaml.Sequence seq) {
+    static @Nullable List<String> extractRefs(Yaml.Sequence seq) {
         List<String> refs = new ArrayList<>();
         for (Yaml.Sequence.Entry seqEntry : seq.getEntries()) {
             if (!(seqEntry.getBlock() instanceof Yaml.Scalar)) {
@@ -183,7 +183,7 @@ public class MigrateToRules extends Recipe {
         return refs;
     }
 
-    static Yaml.Mapping.Entry parseRulesEntry(String yamlString, String prefix) {
+    static Yaml.Mapping.@Nullable Entry parseRulesEntry(String yamlString, String prefix) {
         return YamlParser.builder().build()
                 .parse(yamlString)
                 .map(Yaml.Documents.class::cast)
