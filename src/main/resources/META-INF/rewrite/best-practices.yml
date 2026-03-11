@@ -27,6 +27,7 @@ tags:
   - gitlab
   - ci
 recipeList:
+  - org.openrewrite.gitlab.MigrateToRules
   - org.openrewrite.gitlab.AddWorkflowRules:
       rules: |-
         - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
