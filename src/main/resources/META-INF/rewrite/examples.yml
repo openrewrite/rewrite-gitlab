@@ -262,23 +262,6 @@ examples:
     language: yaml
 ---
 type: specs.openrewrite.org/v1beta/example
-recipeName: org.openrewrite.gitlab.RemoveTemplate
-examples:
-- description: '`RemoveTemplateTest#removeTemplate`'
-  parameters:
-  - Terraform/Base.gitlab-ci.yml
-  sources:
-  - before: |
-      include:
-        - template: Terraform/Base.gitlab-ci.yml
-        - template: OpenTofu/Base.gitlab-ci.yml
-    after: |
-      include:
-        - template: OpenTofu/Base.gitlab-ci.yml
-    path: .gitlab-ci.yml
-    language: yaml
----
-type: specs.openrewrite.org/v1beta/example
 recipeName: org.openrewrite.gitlab.MigrateToRules
 examples:
 - description: '`MigrateToRulesTest#migrateSimpleBranchRef`'
@@ -293,6 +276,23 @@ examples:
         script: make build
         rules:
           - if: $CI_COMMIT_BRANCH == 'main'
+    path: .gitlab-ci.yml
+    language: yaml
+---
+type: specs.openrewrite.org/v1beta/example
+recipeName: org.openrewrite.gitlab.RemoveTemplate
+examples:
+- description: '`RemoveTemplateTest#removeTemplate`'
+  parameters:
+  - Terraform/Base.gitlab-ci.yml
+  sources:
+  - before: |
+      include:
+        - template: Terraform/Base.gitlab-ci.yml
+        - template: OpenTofu/Base.gitlab-ci.yml
+    after: |
+      include:
+        - template: OpenTofu/Base.gitlab-ci.yml
     path: .gitlab-ci.yml
     language: yaml
 ---
