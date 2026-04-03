@@ -99,7 +99,8 @@ public class MigrateToRules extends Recipe {
         String entryPrefix = onlyEntry.getPrefix();
         String baseIndent = entryPrefix.contains("\n") ?
                 entryPrefix.substring(entryPrefix.lastIndexOf('\n') + 1) : "  ";
-        String seqIndent = baseIndent + "  ";
+        String indentUnit = detectIndentUnit(baseIndent, (Yaml.Sequence) onlyEntry.getValue());
+        String seqIndent = baseIndent + indentUnit;
         String contentIndent = seqIndent + "  ";
 
         StringBuilder sb = new StringBuilder("rules:");
@@ -147,7 +148,8 @@ public class MigrateToRules extends Recipe {
         String entryPrefix = exceptEntry.getPrefix();
         String baseIndent = entryPrefix.contains("\n") ?
                 entryPrefix.substring(entryPrefix.lastIndexOf('\n') + 1) : "  ";
-        String seqIndent = baseIndent + "  ";
+        String indentUnit = detectIndentUnit(baseIndent, (Yaml.Sequence) exceptEntry.getValue());
+        String seqIndent = baseIndent + indentUnit;
         String contentIndent = seqIndent + "  ";
 
         StringBuilder sb = new StringBuilder("rules:");
@@ -188,6 +190,21 @@ public class MigrateToRules extends Recipe {
                 .map(mapping -> mapping.getEntries().get(0).withPrefix(prefix))
                 .findFirst()
                 .orElse(null);
+    }
+
+    private static String detectIndentUnit(String baseIndent, Yaml.Sequence seq) {
+        List<Yaml.Sequence.Entry> entries = seq.getEntries();
+        if (entries.isEmpty()) {
+            return "  ";
+        }
+        String childPrefix = entries.get(0).getPrefix();
+        String childIndent = childPrefix.contains("\n") ?
+                childPrefix.substring(childPrefix.lastIndexOf('\n') + 1) : "";
+        int increment = childIndent.length() - baseIndent.length();
+        if (increment <= 0) {
+            return "  ";
+        }
+        return childIndent.substring(baseIndent.length());
     }
 
     static String refToCondition(String ref) {
