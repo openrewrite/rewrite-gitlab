@@ -349,6 +349,80 @@ class MigrateToRulesTest implements RewriteTest {
     }
 
     @Test
+    void migrateFourSpaceIndentOnly() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              build_job:
+                  script: make build
+                  only:
+                      - main
+                      - tags
+              """,
+            """
+              build_job:
+                  script: make build
+                  rules:
+                      - if: $CI_COMMIT_BRANCH == 'main'
+                      - if: $CI_COMMIT_TAG
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateFourSpaceIndentExcept() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              build_job:
+                  script: make build
+                  except:
+                      - tags
+              """,
+            """
+              build_job:
+                  script: make build
+                  rules:
+                      - if: $CI_COMMIT_TAG
+                        when: never
+                      - when: always
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateFourSpaceIndentCombined() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              build_job:
+                  script: make build
+                  only:
+                      - branches
+                  except:
+                      - main
+              """,
+            """
+              build_job:
+                  script: make build
+                  rules:
+                      - if: $CI_COMMIT_BRANCH == 'main'
+                        when: never
+                      - if: $CI_COMMIT_BRANCH
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void noopForNonGitlabCiFiles() {
         rewriteRun(
           //language=yaml
