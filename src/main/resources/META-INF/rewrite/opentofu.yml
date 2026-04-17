@@ -1,0 +1,36 @@
+#
+# Copyright 2025 the original author or authors.
+# <p>
+# Licensed under the Moderne Source Available License (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# <p>
+# https://docs.moderne.io/licensing/moderne-source-available-license
+# <p>
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.openrewrite.gitlab.MigrateTerraformTemplateToOpenTofuComponent
+displayName: Migrate GitLab Terraform template to OpenTofu component
+description: >-
+  Replace the deprecated `Terraform/Base.latest.gitlab-ci.yml` template include
+  with the OpenTofu CI/CD component, per the GitLab catalog migration guide.
+tags:
+  - gitlab
+  - ci
+  - opentofu
+  - terraform
+recipeList:
+  - org.openrewrite.gitlab.MigrateTemplateToComponent:
+      oldTemplate: Terraform/Base.latest.gitlab-ci.yml
+      newComponent: $CI_SERVER_FQDN/components/opentofu/job-templates
+      version: ~latest
+      inputs:
+        - 'version: ~latest'
+        - 'opentofu_version: 1.6.0'
