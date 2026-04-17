@@ -22,6 +22,7 @@ import org.openrewrite.*;
 import org.openrewrite.internal.ListUtils;
 import org.openrewrite.yaml.YamlIsoVisitor;
 import org.openrewrite.yaml.YamlParser;
+import org.openrewrite.yaml.format.AutoFormatVisitor;
 import org.openrewrite.yaml.tree.Yaml;
 
 import java.util.ArrayList;
@@ -65,10 +66,13 @@ public class MigrateToRules extends Recipe {
                             return m;
                         }
 
-                        if (onlyEntry != null) {
-                            return migrateWithOnly(m, onlyEntry, exceptEntry);
+                        Yaml.Mapping result = onlyEntry != null ?
+                                migrateWithOnly(m, onlyEntry, exceptEntry) :
+                                migrateExceptOnly(m, exceptEntry);
+                        if (result != m) {
+                            doAfterVisit(new AutoFormatVisitor<>(null));
                         }
-                        return migrateExceptOnly(m, exceptEntry);
+                        return result;
                     }
                 }
         );
@@ -96,25 +100,17 @@ public class MigrateToRules extends Recipe {
             }
         }
 
-        String entryPrefix = onlyEntry.getPrefix();
-        String baseIndent = entryPrefix.contains("\n") ?
-                entryPrefix.substring(entryPrefix.lastIndexOf('\n') + 1) : "  ";
-        String seqIndent = baseIndent + "  ";
-        String contentIndent = seqIndent + "  ";
-
+        // Build with deeply-indented sequence entries so Autodetect picks indented-sequence
+        // style; AutoFormatVisitor re-indents to the document's actual indent width.
         StringBuilder sb = new StringBuilder("rules:");
-
-        // Except refs come first as 'when: never'
         if (exceptRefs != null && !exceptRefs.isEmpty()) {
             for (String ref : exceptRefs) {
-                sb.append("\n").append(seqIndent).append("- if: ").append(refToCondition(ref));
-                sb.append("\n").append(contentIndent).append("when: never");
+                sb.append("\n        - if: ").append(refToCondition(ref));
+                sb.append("\n          when: never");
             }
         }
-
-        // Only refs as positive rules
         for (String ref : onlyRefs) {
-            sb.append("\n").append(seqIndent).append("- if: ").append(refToCondition(ref));
+            sb.append("\n        - if: ").append(refToCondition(ref));
         }
 
         Yaml.Mapping.Entry rulesEntry = parseRulesEntry(sb.toString(), onlyEntry.getPrefix());
@@ -144,18 +140,12 @@ public class MigrateToRules extends Recipe {
             return m;
         }
 
-        String entryPrefix = exceptEntry.getPrefix();
-        String baseIndent = entryPrefix.contains("\n") ?
-                entryPrefix.substring(entryPrefix.lastIndexOf('\n') + 1) : "  ";
-        String seqIndent = baseIndent + "  ";
-        String contentIndent = seqIndent + "  ";
-
         StringBuilder sb = new StringBuilder("rules:");
         for (String ref : refs) {
-            sb.append("\n").append(seqIndent).append("- if: ").append(refToCondition(ref));
-            sb.append("\n").append(contentIndent).append("when: never");
+            sb.append("\n        - if: ").append(refToCondition(ref));
+            sb.append("\n          when: never");
         }
-        sb.append("\n").append(seqIndent).append("- when: always");
+        sb.append("\n        - when: always");
 
         Yaml.Mapping.Entry rulesEntry = parseRulesEntry(sb.toString(), exceptEntry.getPrefix());
         if (rulesEntry == null) {
