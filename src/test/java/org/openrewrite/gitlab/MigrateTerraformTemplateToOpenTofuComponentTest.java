@@ -46,8 +46,7 @@ class MigrateTerraformTemplateToOpenTofuComponentTest implements RewriteTest {
               include:
                 - component: $CI_SERVER_FQDN/components/opentofu/job-templates@~latest
                   inputs:
-                    version: ~latest
-                    opentofu_version: 1.6.0
+                    opentofu_version: 1.11.6
               """,
             source -> source.path(".gitlab-ci.yml")
           )

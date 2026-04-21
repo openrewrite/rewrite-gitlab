@@ -32,5 +32,4 @@ recipeList:
       newComponent: $CI_SERVER_FQDN/components/opentofu/job-templates
       version: ~latest
       inputs:
-        - 'version: ~latest'
-        - 'opentofu_version: 1.6.0'
+        - 'opentofu_version: 1.11.6'
