@@ -59,7 +59,7 @@ public class AddStages extends Recipe {
                         "$",
                         //language=yml
                         "stages:\n" +
-                                ((stages == null) ? "" : ("  - " + String.join("\n  - ", stages))),
+                                (stages == null ? "" : ("  - " + String.join("\n  - ", stages))),
                         acceptTheirs,
                         "stages",
                         ".gitlab-ci.yml",
