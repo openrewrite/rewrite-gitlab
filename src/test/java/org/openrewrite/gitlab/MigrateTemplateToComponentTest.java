@@ -81,6 +81,27 @@ class MigrateTemplateToComponentTest implements RewriteTest {
     }
 
     @Test
+    void migrateFourSpaceIndent() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                  - template: Terraform/Base.latest.gitlab-ci.yml
+              """,
+            """
+              include:
+                  - component: $CI_SERVER_FQDN/components/opentofu/job-templates@~latest
+                    inputs:
+                        version: ~latest
+                        opentofu_version: 1.6.0
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void noopWhenTemplateAbsent() {
         //language=yaml
         rewriteRun(
