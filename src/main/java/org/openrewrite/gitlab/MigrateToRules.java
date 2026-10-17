@@ -22,7 +22,6 @@ import org.openrewrite.*;
 import org.openrewrite.internal.ListUtils;
 import org.openrewrite.yaml.YamlIsoVisitor;
 import org.openrewrite.yaml.YamlParser;
-import org.openrewrite.yaml.format.AutoFormatVisitor;
 import org.openrewrite.yaml.tree.Yaml;
 
 import java.util.ArrayList;
@@ -69,10 +68,12 @@ public class MigrateToRules extends Recipe {
                         Yaml.Mapping result = onlyEntry != null ?
                                 migrateWithOnly(m, onlyEntry, exceptEntry) :
                                 migrateExceptOnly(m, exceptEntry);
-                        if (result != m) {
-                            doAfterVisit(new AutoFormatVisitor<>(null));
+                        if (result == m) {
+                            return m;
                         }
-                        return result;
+                        // The job had no `rules` before, so this formats only the new entry
+                        return result.withEntries(ListUtils.map(result.getEntries(), entry ->
+                                "rules".equals(entry.getKey().getValue()) ? autoFormat(entry, ctx, getCursor()) : entry));
                     }
                 }
         );
@@ -100,8 +101,7 @@ public class MigrateToRules extends Recipe {
             }
         }
 
-        // Build with deeply-indented sequence entries so Autodetect picks indented-sequence
-        // style; AutoFormatVisitor re-indents to the document's actual indent width.
+        // visitMapping's autoFormat re-indents these entries to match the document
         StringBuilder sb = new StringBuilder("rules:");
         if (exceptRefs != null && !exceptRefs.isEmpty()) {
             for (String ref : exceptRefs) {

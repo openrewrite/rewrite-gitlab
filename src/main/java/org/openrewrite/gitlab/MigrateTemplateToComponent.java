@@ -23,7 +23,6 @@ import org.openrewrite.internal.ListUtils;
 import org.openrewrite.yaml.JsonPathMatcher;
 import org.openrewrite.yaml.YamlIsoVisitor;
 import org.openrewrite.yaml.YamlParser;
-import org.openrewrite.yaml.format.AutoFormatVisitor;
 import org.openrewrite.yaml.tree.Yaml;
 
 import java.util.List;
@@ -81,8 +80,8 @@ public class MigrateTemplateToComponent extends Recipe {
                         String firstEntryPrefix = original.getEntries().get(0).getPrefix();
                         replacement = replacement.withEntries(ListUtils.mapFirst(replacement.getEntries(),
                                 first -> first.withPrefix(firstEntryPrefix)));
-                        doAfterVisit(new AutoFormatVisitor<>(null));
-                        return e.withBlock(replacement);
+                        // Formatting the entry rather than its block indents past the dash
+                        return autoFormat(e.withBlock(replacement), ctx, getCursor().getParentOrThrow());
                     }
                 }
         );
