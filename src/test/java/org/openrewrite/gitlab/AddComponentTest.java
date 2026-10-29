@@ -20,6 +20,7 @@ import org.openrewrite.DocumentExample;
 import org.openrewrite.Issue;
 import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
+import org.openrewrite.yaml.MergeYaml.InsertMode;
 
 import java.util.List;
 
@@ -34,6 +35,7 @@ class AddComponentTest implements RewriteTest {
             "$CI_SERVER_FQDN/components/opentofu/full-pipeline",
             "0.10.0",
             List.of("version: 0.10.0", "opentofu_version: 1.6.1"),
+            null,
             null));
     }
 
@@ -106,6 +108,7 @@ class AddComponentTest implements RewriteTest {
               "$CI_SERVER_FQDN/components/opentofu/full-pipeline",
               "0.10.0",
               null,
+              null,
               null)),
           yaml(
             """
@@ -116,6 +119,147 @@ class AddComponentTest implements RewriteTest {
               include:
                 - template: Gradle.gitlab-ci.yml
                 - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void insertBeforeExistingEntry() {
+        //language=yaml
+        rewriteRun(
+          spec -> spec.recipe(
+            new AddComponent(
+              "$CI_SERVER_FQDN/components/opentofu/full-pipeline",
+              "0.10.0",
+              null,
+              InsertMode.Before,
+              "template: Gradle.gitlab-ci.yml")),
+          yaml(
+            """
+              include:
+                - local: build.yml
+                - template: Gradle.gitlab-ci.yml
+              """,
+            """
+              include:
+                - local: build.yml
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                - template: Gradle.gitlab-ci.yml
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void addNewIncludeAtTopOfFile() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              variables:
+                GRADLE_OPTS: -Dorg.gradle.daemon=false
+
+              build:
+                script: ./gradlew build
+              """,
+            """
+              include:
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                  inputs:
+                    version: 0.10.0
+                    opentofu_version: 1.6.1
+              variables:
+                GRADLE_OPTS: -Dorg.gradle.daemon=false
+
+              build:
+                script: ./gradlew build
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void addNewIncludeBelowFileHeader() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              # yaml-language-server: $schema=https://gitlab.com/gitlab-org/gitlab/-/raw/master/app/assets/javascripts/editor/schema/ci.json
+
+              # Build the project
+              build:
+                script: ./gradlew build
+              """,
+            """
+              # yaml-language-server: $schema=https://gitlab.com/gitlab-org/gitlab/-/raw/master/app/assets/javascripts/editor/schema/ci.json
+
+              include:
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                  inputs:
+                    version: 0.10.0
+                    opentofu_version: 1.6.1
+              # Build the project
+              build:
+                script: ./gradlew build
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void leaveSpecHeaderUntouched() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              spec:
+                inputs:
+                  stage:
+                    default: test
+              ---
+              build:
+                script: ./gradlew build
+              """,
+            """
+              spec:
+                inputs:
+                  stage:
+                    default: test
+              ---
+              include:
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                  inputs:
+                    version: 0.10.0
+                    opentofu_version: 1.6.1
+              build:
+                script: ./gradlew build
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void addToListOfFileNames() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - build.yml
+              """,
+            """
+              include:
+                - build.yml
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                  inputs:
+                    version: 0.10.0
+                    opentofu_version: 1.6.1
               """,
             source -> source.path(".gitlab-ci.yml")
           )

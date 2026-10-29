@@ -18,14 +18,13 @@ package org.openrewrite.gitlab;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
+import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.yaml.MergeYaml;
+import org.openrewrite.TreeVisitor;
 import org.openrewrite.yaml.MergeYaml.InsertMode;
 
-import java.util.List;
-
-import static java.util.Collections.singletonList;
+import static java.util.Collections.emptyList;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
@@ -37,28 +36,34 @@ public class AddTemplate extends Recipe {
     String newTemplate;
 
     @Option(displayName = "Insert mode",
-            description = "Choose an insertion point when multiple mappings exist. Default is `Last`.",
+            description = "Where to insert the template in an existing `include` list. Default is `Last`.",
             valid = {"Before", "After", "Last"},
             required = false)
     @Nullable
     InsertMode insertMode;
+
+    @Option(displayName = "Insert property",
+            description = "The existing `include` entry to insert the template before or after, written as its first key and value. " +
+                          "Only used when `insertMode` is `Before` or `After`.",
+            example = "component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0",
+            required = false)
+    @Nullable
+    String insertProperty;
 
     String displayName = "Add GitLab template";
 
     String description = "Add a GitLab template to an existing list, or add a new list where none was present.";
 
     @Override
-    public List<Recipe> getRecipeList() {
-        return singletonList(
-                new MergeYaml(
-                        "$",
-                        "include:\n - template: " + newTemplate,
-                        false,
-                        "template",
-                        ".gitlab-ci.yml",
-                        insertMode,
-                        null,
-                        null)
-        );
+    public TreeVisitor<?, ExecutionContext> getVisitor() {
+        return new MergeTopLevelKey(
+                "include",
+                "include:\n - template: " + newTemplate,
+                false,
+                "template",
+                insertMode,
+                insertProperty,
+                emptyList())
+                .getVisitor();
     }
 }

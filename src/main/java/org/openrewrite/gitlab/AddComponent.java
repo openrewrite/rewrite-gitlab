@@ -18,14 +18,15 @@ package org.openrewrite.gitlab;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
+import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.yaml.MergeYaml;
+import org.openrewrite.TreeVisitor;
 import org.openrewrite.yaml.MergeYaml.InsertMode;
 
 import java.util.List;
 
-import static java.util.Collections.singletonList;
+import static java.util.Collections.emptyList;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
@@ -48,18 +49,26 @@ public class AddComponent extends Recipe {
     List<String> inputs;
 
     @Option(displayName = "Insert mode",
-            description = "Choose an insertion point when multiple mappings exist. Default is `Last`.",
+            description = "Where to insert the component in an existing `include` list. Default is `Last`.",
             valid = {"Before", "After", "Last"},
             required = false)
     @Nullable
     InsertMode insertMode;
+
+    @Option(displayName = "Insert property",
+            description = "The existing `include` entry to insert the component before or after, written as its first key and value. " +
+                          "Only used when `insertMode` is `Before` or `After`.",
+            example = "template: Gradle.gitlab-ci.yml",
+            required = false)
+    @Nullable
+    String insertProperty;
 
     String displayName = "Add GitLab component";
 
     String description = "Add a GitLab component to an existing list, or add a new list where none was present.";
 
     @Override
-    public List<Recipe> getRecipeList() {
+    public TreeVisitor<?, ExecutionContext> getVisitor() {
         StringBuilder includeBlock = new StringBuilder()
                 .append("include:\n")
                 .append(" - component: ")
@@ -73,17 +82,15 @@ public class AddComponent extends Recipe {
             inputs.forEach(input -> includeBlock.append("     ").append(input).append("\n"));
         }
 
-        return singletonList(
-                new MergeYaml(
-                        "$",
-                        //language=yml
-                        includeBlock.toString(),
-                        false,
-                        "component",
-                        ".gitlab-ci.yml",
-                        insertMode,
-                        null,
-                        null)
-        );
+        return new MergeTopLevelKey(
+                "include",
+                //language=yml
+                includeBlock.toString(),
+                false,
+                "component",
+                insertMode,
+                insertProperty,
+                emptyList())
+                .getVisitor();
     }
 }

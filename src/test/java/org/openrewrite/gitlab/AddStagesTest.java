@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
+import org.openrewrite.yaml.MergeYaml.InsertMode;
 
 import java.util.List;
 
@@ -27,7 +28,7 @@ import static org.openrewrite.yaml.Assertions.yaml;
 class AddStagesTest implements RewriteTest {
     @Override
     public void defaults(RecipeSpec spec) {
-        spec.recipe(new AddStages(List.of("build", "test", "deploy"), false, null));
+        spec.recipe(new AddStages(List.of("build", "test", "deploy"), false, null, null));
     }
 
     @DocumentExample
@@ -90,11 +91,85 @@ class AddStagesTest implements RewriteTest {
         //language=yaml
         rewriteRun(
           spec ->
-            spec.recipe(new AddStages(List.of("build", "test", "deploy"), true, null)),
+            spec.recipe(new AddStages(List.of("build", "test", "deploy"), true, null, null)),
           yaml(
             """
               stages:
                 - build
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void insertAfterExistingStage() {
+        //language=yaml
+        rewriteRun(
+          spec -> spec.recipe(new AddStages(List.of("security"), null, InsertMode.After, "test")),
+          yaml(
+            """
+              stages:
+                - build
+                - test
+                - deploy
+              """,
+            """
+              stages:
+                - build
+                - test
+                - security
+                - deploy
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void addNewAfterInclude() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - template: Gradle.gitlab-ci.yml
+
+              build:
+                script: ./gradlew build
+              """,
+            """
+              include:
+                - template: Gradle.gitlab-ci.yml
+              stages:
+                - build
+                - test
+                - deploy
+
+              build:
+                script: ./gradlew build
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void addNewAtTopOfFile() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              build:
+                script: ./gradlew build
+              """,
+            """
+              stages:
+                - build
+                - test
+                - deploy
+              build:
+                script: ./gradlew build
               """,
             source -> source.path(".gitlab-ci.yml")
           )
