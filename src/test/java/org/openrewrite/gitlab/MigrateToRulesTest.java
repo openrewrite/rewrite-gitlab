@@ -423,6 +423,43 @@ class MigrateToRulesTest implements RewriteTest {
     }
 
     @Test
+    void skipAnchoredOnly() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              build_job:
+                script: make build
+                only: &main_only
+                  - main
+              test_job:
+                script: make test
+                only: *main_only
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void skipAnchoredExceptRef() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              build_job:
+                script: make build
+                except:
+                  - &release_branch release
+              variables:
+                RELEASE_BRANCH: *release_branch
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void noopForNonGitlabCiFiles() {
         rewriteRun(
           //language=yaml

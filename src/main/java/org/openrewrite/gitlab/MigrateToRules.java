@@ -36,7 +36,8 @@ public class MigrateToRules extends Recipe {
     String description = "Replace the deprecated `only` and `except` keywords with equivalent `rules` " +
             "in `.gitlab-ci.yml` job definitions. When both `only` and `except` are present, " +
             "they are combined into a single `rules` block. Handles simple ref list forms; " +
-            "complex object forms with `refs`, `variables`, or `changes` sub-keys are left unchanged.";
+            "complex object forms with `refs`, `variables`, or `changes` sub-keys are left unchanged, as are " +
+            "`only` and `except` values that define a YAML anchor.";
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
@@ -61,7 +62,8 @@ public class MigrateToRules extends Recipe {
                             }
                         }
 
-                        if (onlyEntry == null && exceptEntry == null) {
+                        if (onlyEntry == null && exceptEntry == null ||
+                            definesAnchor(onlyEntry) || definesAnchor(exceptEntry)) {
                             return m;
                         }
 
@@ -157,6 +159,11 @@ public class MigrateToRules extends Recipe {
             }
             return entry;
         }));
+    }
+
+    // Replacing the entry would drop the anchor and leave its aliases dangling
+    private static boolean definesAnchor(Yaml.Mapping.@Nullable Entry entry) {
+        return entry != null && !YamlAnchors.anchorsIn(entry.getValue()).isEmpty();
     }
 
     static @Nullable List<String> extractRefs(Yaml.Sequence seq) {
