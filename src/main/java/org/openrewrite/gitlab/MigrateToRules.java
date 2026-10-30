@@ -24,14 +24,19 @@ import org.openrewrite.yaml.YamlIsoVisitor;
 import org.openrewrite.yaml.YamlParser;
 import org.openrewrite.yaml.tree.Yaml;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static java.util.Collections.emptySet;
+import static java.util.Collections.singletonList;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
 public class MigrateToRules extends Recipe {
+
+    private static final String INHERITANCE_CONFLICTS = "INHERITANCE_CONFLICTS";
 
     private static final Pattern PROJECT_QUALIFIED_REF = Pattern.compile("(/.*/|[^/@][^@]*)@([^@\\s]*[^@/\\s])");
 
@@ -41,7 +46,9 @@ public class MigrateToRules extends Recipe {
             "in `.gitlab-ci.yml` job definitions. When both `only` and `except` are present, " +
             "they are combined into a single `rules` block. Handles simple ref list forms; " +
             "complex object forms with `refs`, `variables`, or `changes` sub-keys are left unchanged, as are " +
-            "`only` and `except` values that define a YAML anchor. Refs qualified with a project path, such as " +
+            "`only` and `except` values that define a YAML anchor, and jobs that inherit `only`, `except` or " +
+            "`rules` through `extends` or a `<<` merge key while defining their own, or that extend a template " +
+            "defined outside the file. Refs qualified with a project path, such as " +
             "`main@group/project`, also check `$CI_PROJECT_PATH`.";
 
     @Override
@@ -49,6 +56,12 @@ public class MigrateToRules extends Recipe {
         return Preconditions.check(
                 new FindSourceFiles("**/.gitlab-ci.yml"),
                 new YamlIsoVisitor<ExecutionContext>() {
+                    @Override
+                    public Yaml.Document visitDocument(Yaml.Document document, ExecutionContext ctx) {
+                        getCursor().putMessage(INHERITANCE_CONFLICTS, inheritanceConflicts(document));
+                        return super.visitDocument(document, ctx);
+                    }
+
                     @Override
                     public Yaml.Mapping visitMapping(Yaml.Mapping mapping, ExecutionContext ctx) {
                         Yaml.Mapping m = super.visitMapping(mapping, ctx);
@@ -67,7 +80,8 @@ public class MigrateToRules extends Recipe {
                             }
                         }
 
-                        if (onlyEntry == null && exceptEntry == null ||
+                        Set<UUID> conflicts = getCursor().getNearestMessage(INHERITANCE_CONFLICTS, emptySet());
+                        if (onlyEntry == null && exceptEntry == null || conflicts.contains(m.getId()) ||
                             definesAnchor(onlyEntry) || definesAnchor(exceptEntry)) {
                             return m;
                         }
@@ -164,6 +178,93 @@ public class MigrateToRules extends Recipe {
             }
             return entry;
         }));
+    }
+
+    // GitLab combines `only` and `except` inherited through `extends` or `<<` with a job's own, whereas a job's own
+    // `rules` replace inherited ones. So neither side is migrated when both define conditions, nor when a job extends
+    // a template that is not in this file, such as one from an `include`.
+    private static Set<UUID> inheritanceConflicts(Yaml.Document document) {
+        if (!(document.getBlock() instanceof Yaml.Mapping)) {
+            return emptySet();
+        }
+        Map<String, Yaml.Mapping> jobs = new HashMap<>();
+        for (Yaml.Mapping.Entry entry : ((Yaml.Mapping) document.getBlock()).getEntries()) {
+            if (entry.getValue() instanceof Yaml.Mapping) {
+                jobs.put(entry.getKey().getValue(), (Yaml.Mapping) entry.getValue());
+            }
+        }
+        Map<UUID, Yaml> aliases = YamlAnchors.resolveAliases(document);
+        Set<UUID> conflicts = new HashSet<>();
+        for (Yaml.Mapping job : jobs.values()) {
+            List<Yaml.Mapping> ancestors = ancestors(job, jobs, aliases, new HashSet<>());
+            if (ancestors == null) {
+                conflicts.add(job.getId());
+            } else if (definesConditions(job) && ancestors.stream().anyMatch(MigrateToRules::definesConditions)) {
+                conflicts.add(job.getId());
+                ancestors.forEach(ancestor -> conflicts.add(ancestor.getId()));
+            }
+        }
+        return conflicts;
+    }
+
+    private static boolean definesConditions(Yaml.Mapping mapping) {
+        for (Yaml.Mapping.Entry entry : mapping.getEntries()) {
+            String key = entry.getKey().getValue();
+            if ("only".equals(key) || "except".equals(key) || "rules".equals(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static @Nullable List<Yaml.Mapping> ancestors(Yaml.Mapping mapping, Map<String, Yaml.Mapping> jobs,
+                                                          Map<UUID, Yaml> aliases, Set<UUID> visited) {
+        List<Yaml.Mapping> ancestors = new ArrayList<>();
+        for (Yaml.Mapping.Entry entry : mapping.getEntries()) {
+            List<Yaml.Mapping> parents;
+            String key = entry.getKey().getValue();
+            if ("extends".equals(key)) {
+                parents = parents(entry.getValue(), ref -> ref instanceof Yaml.Scalar ?
+                        jobs.get(((Yaml.Scalar) ref).getValue()) : null);
+            } else if ("<<".equals(key)) {
+                parents = parents(entry.getValue(), ref -> {
+                    Yaml merged = ref instanceof Yaml.Alias ? aliases.get(ref.getId()) : ref;
+                    return merged instanceof Yaml.Mapping ? (Yaml.Mapping) merged : null;
+                });
+            } else {
+                continue;
+            }
+            if (parents == null) {
+                return null;
+            }
+            for (Yaml.Mapping parent : parents) {
+                if (visited.add(parent.getId())) {
+                    List<Yaml.Mapping> grandparents = ancestors(parent, jobs, aliases, visited);
+                    if (grandparents == null) {
+                        return null;
+                    }
+                    ancestors.add(parent);
+                    ancestors.addAll(grandparents);
+                }
+            }
+        }
+        return ancestors;
+    }
+
+    private static @Nullable List<Yaml.Mapping> parents(Yaml value, Function<Yaml, Yaml.@Nullable Mapping> resolve) {
+        if (!(value instanceof Yaml.Sequence)) {
+            Yaml.Mapping parent = resolve.apply(value);
+            return parent == null ? null : singletonList(parent);
+        }
+        List<Yaml.Mapping> parents = new ArrayList<>();
+        for (Yaml.Sequence.Entry entry : ((Yaml.Sequence) value).getEntries()) {
+            Yaml.Mapping parent = resolve.apply(entry.getBlock());
+            if (parent == null) {
+                return null;
+            }
+            parents.add(parent);
+        }
+        return parents;
     }
 
     // Replacing the entry would drop the anchor and leave its aliases dangling

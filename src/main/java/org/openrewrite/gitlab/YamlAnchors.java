@@ -26,6 +26,45 @@ final class YamlAnchors {
     private YamlAnchors() {
     }
 
+    // Anchor names may be reused, in which case an alias refers to the most recent anchor of that name before it
+    static Map<UUID, Yaml> resolveAliases(Yaml.Document document) {
+        Map<String, Yaml> anchored = new HashMap<>();
+        return new YamlIsoVisitor<Map<UUID, Yaml>>() {
+            @Override
+            public Yaml.Mapping visitMapping(Yaml.Mapping mapping, Map<UUID, Yaml> resolved) {
+                define(mapping.getAnchor(), mapping);
+                return super.visitMapping(mapping, resolved);
+            }
+
+            @Override
+            public Yaml.Sequence visitSequence(Yaml.Sequence sequence, Map<UUID, Yaml> resolved) {
+                define(sequence.getAnchor(), sequence);
+                return super.visitSequence(sequence, resolved);
+            }
+
+            @Override
+            public Yaml.Scalar visitScalar(Yaml.Scalar scalar, Map<UUID, Yaml> resolved) {
+                define(scalar.getAnchor(), scalar);
+                return scalar;
+            }
+
+            @Override
+            public Yaml.Alias visitAlias(Yaml.Alias alias, Map<UUID, Yaml> resolved) {
+                Yaml target = anchored.get(alias.getAnchor().getKey());
+                if (target != null) {
+                    resolved.put(alias.getId(), target);
+                }
+                return alias;
+            }
+
+            private void define(Yaml.@Nullable Anchor anchor, Yaml node) {
+                if (anchor != null) {
+                    anchored.put(anchor.getKey(), node);
+                }
+            }
+        }.reduce(document, new HashMap<>());
+    }
+
     static Set<String> anchorsIn(Yaml tree) {
         return new YamlIsoVisitor<Set<String>>() {
             @Override

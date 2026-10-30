@@ -508,6 +508,144 @@ class MigrateToRulesTest implements RewriteTest {
     }
 
     @Test
+    void skipExceptCombinedWithExtendedOnly() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              .deploy:
+                script: make deploy
+                only:
+                  - main
+              deploy_job:
+                extends: .deploy
+                except:
+                  - tags
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void skipExceptCombinedWithMergedOnly() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              .deploy: &deploy
+                script: make deploy
+                only:
+                  - main
+              deploy_job:
+                <<: *deploy
+                except:
+                  - tags
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void skipOnlyCombinedWithIndirectlyExtendedExcept() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              .base:
+                except:
+                  - tags
+              .deploy:
+                extends: .base
+                script: make deploy
+              deploy_job:
+                extends: [.deploy]
+                only:
+                  - main
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void skipWhenExtendingTemplateFromInclude() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              include:
+                - remote: https://example.com/templates.yml
+              deploy_job:
+                extends: .remote_deploy
+                only:
+                  - main
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateJobExtendingTemplateWithoutConditions() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              .defaults: &defaults
+                image: alpine
+              .deploy:
+                script: make deploy
+              deploy_job:
+                <<: *defaults
+                extends: .deploy
+                only:
+                  - main
+              """,
+            """
+              .defaults: &defaults
+                image: alpine
+              .deploy:
+                script: make deploy
+              deploy_job:
+                <<: *defaults
+                extends: .deploy
+                rules:
+                  - if: $CI_COMMIT_BRANCH == 'main'
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateTemplateExtendedByJobWithoutConditions() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              .deploy:
+                only:
+                  - main
+              deploy_job:
+                extends: .deploy
+                script: make deploy
+              """,
+            """
+              .deploy:
+                rules:
+                  - if: $CI_COMMIT_BRANCH == 'main'
+              deploy_job:
+                extends: .deploy
+                script: make deploy
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void noopForNonGitlabCiFiles() {
         rewriteRun(
           //language=yaml
