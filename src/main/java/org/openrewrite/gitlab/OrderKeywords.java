@@ -63,7 +63,8 @@ public class OrderKeywords extends Recipe {
             "original order. Within `default` and each job, keywords follow the order in which they take effect: " +
             "inheritance, scheduling, execution environment, scripts and finally outputs such as `artifacts`. " +
             "Unrecognized keys keep their relative order after the recognized ones. " +
-            "A mapping is left unchanged when reordering would place a YAML alias before its anchor.";
+            "A mapping is left unchanged when reordering would place a YAML alias before its anchor, or a `<<` merge " +
+            "key before a key it also defines, as GitLab lets a merge key override the keys that precede it.";
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
@@ -77,6 +78,7 @@ public class OrderKeywords extends Recipe {
                         }
                         Cursor cursor = getCursor();
                         String newline = Autodetect.generalFormat(document).newLine();
+                        Map<UUID, Yaml> aliases = YamlAnchors.resolveAliases(document);
                         Yaml.Mapping root = (Yaml.Mapping) document.getBlock();
                         List<Yaml.Mapping.Entry> rootEntries = root.getEntries();
                         String[] prefixes = new String[rootEntries.size() + 1];
@@ -86,8 +88,8 @@ public class OrderKeywords extends Recipe {
                         prefixes[rootEntries.size()] = document.getEnd().getPrefix();
                         root = root.withEntries(ListUtils.map(rootEntries, (i, entry) -> {
                             entry = entry.withPrefix(prefixes[i]);
-                            Reordered job = isJob(entry) ?
-                                    order((Yaml.Mapping) entry.getValue(), JOB_KEYWORDS, prefixes[i + 1], newline, cursor) : null;
+                            Reordered job = isJob(entry) ? order((Yaml.Mapping) entry.getValue(), JOB_KEYWORDS,
+                                    prefixes[i + 1], newline, aliases, cursor) : null;
                             if (job == null) {
                                 return entry;
                             }
@@ -95,7 +97,7 @@ public class OrderKeywords extends Recipe {
                             return entry.withValue(job.getMapping());
                         }));
                         String documentEnd = prefixes[rootEntries.size()];
-                        Reordered ordered = order(root, GLOBAL_KEYWORDS, documentEnd, newline, cursor);
+                        Reordered ordered = order(root, GLOBAL_KEYWORDS, documentEnd, newline, aliases, cursor);
                         if (ordered != null) {
                             root = ordered.getMapping();
                             documentEnd = ordered.getFollowing();
@@ -123,14 +125,15 @@ public class OrderKeywords extends Recipe {
         String lineEnd;
     }
 
-    private static @Nullable Reordered order(Yaml.Mapping mapping, List<String> keywords, String following, String newline, Cursor cursor) {
+    private static @Nullable Reordered order(Yaml.Mapping mapping, List<String> keywords, String following,
+                                             String newline, Map<UUID, Yaml> aliases, Cursor cursor) {
         if (mapping.getOpeningBracePrefix() != null) {
             return null;
         }
         List<Yaml.Mapping.Entry> entries = mapping.getEntries();
         List<Yaml.Mapping.Entry> ordered = new ArrayList<>(entries);
         ordered.sort(comparingInt(entry -> rank(entry, keywords)));
-        if (ordered.equals(entries) || aliasPrecedesAnchor(ordered)) {
+        if (ordered.equals(entries) || aliasPrecedesAnchor(ordered) || mergeOverridesPrecedingKey(entries, aliases)) {
             return null;
         }
         return relayout(mapping, ordered, following, newline, cursor);
@@ -215,5 +218,57 @@ public class OrderKeywords extends Recipe {
             }
         }
         return false;
+    }
+
+    // GitLab's YAML parser lets a `<<` merge key override the keys before it, so moving the merge key first would
+    // change which value wins
+    private static boolean mergeOverridesPrecedingKey(List<Yaml.Mapping.Entry> entries, Map<UUID, Yaml> aliases) {
+        Set<String> preceding = new HashSet<>();
+        for (Yaml.Mapping.Entry entry : entries) {
+            String key = entry.getKey().getValue();
+            if ("<<".equals(key) && !preceding.isEmpty()) {
+                Set<String> merged = mergedKeys(entry.getValue(), aliases, new HashSet<>());
+                if (merged == null || !Collections.disjoint(preceding, merged)) {
+                    return true;
+                }
+            }
+            preceding.add(key);
+        }
+        return false;
+    }
+
+    private static @Nullable Set<String> mergedKeys(Yaml value, Map<UUID, Yaml> aliases, Set<UUID> visited) {
+        if (value instanceof Yaml.Sequence) {
+            Set<String> keys = new HashSet<>();
+            for (Yaml.Sequence.Entry entry : ((Yaml.Sequence) value).getEntries()) {
+                Set<String> merged = mergedKeys(entry.getBlock(), aliases, visited);
+                if (merged == null) {
+                    return null;
+                }
+                keys.addAll(merged);
+            }
+            return keys;
+        }
+        Yaml merged = value instanceof Yaml.Alias ? aliases.get(value.getId()) : value;
+        if (!(merged instanceof Yaml.Mapping)) {
+            return null;
+        }
+        Set<String> keys = new HashSet<>();
+        if (!visited.add(merged.getId())) {
+            return keys;
+        }
+        for (Yaml.Mapping.Entry entry : ((Yaml.Mapping) merged).getEntries()) {
+            String key = entry.getKey().getValue();
+            if ("<<".equals(key)) {
+                Set<String> nested = mergedKeys(entry.getValue(), aliases, visited);
+                if (nested == null) {
+                    return null;
+                }
+                keys.addAll(nested);
+            } else {
+                keys.add(key);
+            }
+        }
+        return keys;
     }
 }
