@@ -45,11 +45,7 @@ public class MigrateToRules extends Recipe {
     String description = "Replace the deprecated `only` and `except` keywords with equivalent `rules` " +
             "in `.gitlab-ci.yml` job definitions. When both `only` and `except` are present, " +
             "they are combined into a single `rules` block. Handles simple ref list forms; " +
-            "complex object forms with `refs`, `variables`, or `changes` sub-keys are left unchanged, as are " +
-            "`only` and `except` values that define a YAML anchor, and jobs that inherit `only`, `except` or " +
-            "`rules` through `extends` or a `<<` merge key while defining their own, or that extend a template " +
-            "defined outside the file. Refs qualified with a project path, such as " +
-            "`main@group/project`, also check `$CI_PROJECT_PATH`.";
+            "complex object forms with `refs`, `variables`, or `changes` sub-keys are left unchanged.";
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {

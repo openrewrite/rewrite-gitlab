@@ -63,8 +63,7 @@ public class OrderKeywords extends Recipe {
             "original order. Within `default` and each job, keywords follow the order in which they take effect: " +
             "inheritance, scheduling, execution environment, scripts and finally outputs such as `artifacts`. " +
             "Unrecognized keys keep their relative order after the recognized ones. " +
-            "A mapping is left unchanged when reordering would place a YAML alias before its anchor, or a `<<` merge " +
-            "key before a key it also defines, as GitLab lets a merge key override the keys that precede it.";
+            "A mapping is left unchanged when reordering would place a YAML alias before its anchor.";
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
