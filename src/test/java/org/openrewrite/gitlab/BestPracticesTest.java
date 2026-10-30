@@ -52,6 +52,7 @@ class BestPracticesTest implements RewriteTest {
                   - if: $CI_COMMIT_BRANCH
               default:
                 interruptible: true
+                timeout: 1 hour
                 retry:
                   max: 2
                   when:
@@ -59,7 +60,6 @@ class BestPracticesTest implements RewriteTest {
                     - stuck_or_timeout_failure
                 artifacts:
                   expire_in: 1 week
-                timeout: 1 hour
               """,
             source -> source.path(".gitlab-ci.yml")
           )
@@ -83,6 +83,7 @@ class BestPracticesTest implements RewriteTest {
                   - if: $CI_COMMIT_BRANCH
               default:
                 interruptible: true
+                timeout: 1 hour
                 retry:
                   max: 2
                   when:
@@ -90,7 +91,6 @@ class BestPracticesTest implements RewriteTest {
                     - stuck_or_timeout_failure
                 artifacts:
                   expire_in: 1 week
-                timeout: 1 hour
               """,
             source -> source.path(".gitlab-ci.yml")
           )

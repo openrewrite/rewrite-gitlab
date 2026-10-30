@@ -22,7 +22,8 @@ description: >-
   Apply GitLab CI/CD best practices to `.gitlab-ci.yml`. This includes
   adding `workflow:rules` to prevent duplicate pipelines, setting
   `interruptible: true` and `retry` in the `default` section,
-  configuring `artifacts:expire_in`, and setting a job `timeout`.
+  configuring `artifacts:expire_in`, setting a job `timeout`, and ordering
+  the keywords consistently.
 tags:
   - gitlab
   - ci
@@ -44,6 +45,8 @@ recipeList:
       expireIn: 1 week
   - org.openrewrite.gitlab.AddTimeout:
       timeout: 1 hour
+  # Last, so that it also orders the keywords added above
+  - org.openrewrite.gitlab.OrderKeywords
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: org.openrewrite.gitlab.search.FindDeprecatedSyntax
