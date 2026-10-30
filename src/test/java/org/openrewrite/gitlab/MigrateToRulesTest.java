@@ -124,6 +124,54 @@ class MigrateToRulesTest implements RewriteTest {
     }
 
     @Test
+    void migrateProjectQualifiedRefs() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              deploy_job:
+                script: make deploy
+                only:
+                  - main@group/project
+                  - /^release-.*$/@group/subgroup/project
+                  - tags@group/project
+              """,
+            """
+              deploy_job:
+                script: make deploy
+                rules:
+                  - if: $CI_COMMIT_BRANCH == 'main' && $CI_PROJECT_PATH == 'group/project'
+                  - if: $CI_COMMIT_BRANCH =~ /^release-.*$/ && $CI_PROJECT_PATH == 'group/subgroup/project'
+                  - if: $CI_COMMIT_TAG && $CI_PROJECT_PATH == 'group/project'
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateRegexRefContainingAt() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              release_job:
+                script: make release
+                only:
+                  - /^user@host$/
+              """,
+            """
+              release_job:
+                script: make release
+                rules:
+                  - if: $CI_COMMIT_BRANCH =~ /^user@host$/
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void migratePipelineSourceRefs() {
         rewriteRun(
           //language=yaml

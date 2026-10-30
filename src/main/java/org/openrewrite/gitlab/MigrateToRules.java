@@ -26,10 +26,14 @@ import org.openrewrite.yaml.tree.Yaml;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
 public class MigrateToRules extends Recipe {
+
+    private static final Pattern PROJECT_QUALIFIED_REF = Pattern.compile("(/.*/|[^/@][^@]*)@([^@\\s]*[^@/\\s])");
 
     String displayName = "Migrate `only`/`except` to `rules`";
 
@@ -37,7 +41,8 @@ public class MigrateToRules extends Recipe {
             "in `.gitlab-ci.yml` job definitions. When both `only` and `except` are present, " +
             "they are combined into a single `rules` block. Handles simple ref list forms; " +
             "complex object forms with `refs`, `variables`, or `changes` sub-keys are left unchanged, as are " +
-            "`only` and `except` values that define a YAML anchor.";
+            "`only` and `except` values that define a YAML anchor. Refs qualified with a project path, such as " +
+            "`main@group/project`, also check `$CI_PROJECT_PATH`.";
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
@@ -188,6 +193,11 @@ public class MigrateToRules extends Recipe {
     }
 
     static String refToCondition(String ref) {
+        Matcher projectQualified = PROJECT_QUALIFIED_REF.matcher(ref);
+        if (projectQualified.matches()) {
+            return refToCondition(projectQualified.group(1)) +
+                    " && $CI_PROJECT_PATH == '" + projectQualified.group(2) + "'";
+        }
         switch (ref) {
             case "branches":
                 return "$CI_COMMIT_BRANCH";
