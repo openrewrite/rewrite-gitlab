@@ -201,62 +201,19 @@ public class OrderKeywords extends Recipe {
         List<Set<String>> anchorsPerEntry = new ArrayList<>(ordered.size());
         Set<String> siblingAnchors = new HashSet<>();
         for (Yaml.Mapping.Entry entry : ordered) {
-            Set<String> anchors = anchorsIn(entry);
+            Set<String> anchors = YamlAnchors.anchorsIn(entry);
             anchorsPerEntry.add(anchors);
             siblingAnchors.addAll(anchors);
         }
         Set<String> defined = new HashSet<>();
         for (int i = 0; i < ordered.size(); i++) {
             defined.addAll(anchorsPerEntry.get(i));
-            for (String alias : aliasesIn(ordered.get(i))) {
+            for (String alias : YamlAnchors.aliasesIn(ordered.get(i))) {
                 if (siblingAnchors.contains(alias) && !defined.contains(alias)) {
                     return true;
                 }
             }
         }
         return false;
-    }
-
-    private static Set<String> anchorsIn(Yaml.Mapping.Entry entry) {
-        return new YamlIsoVisitor<Set<String>>() {
-            @Override
-            public Yaml.Mapping visitMapping(Yaml.Mapping mapping, Set<String> anchors) {
-                add(mapping.getAnchor(), anchors);
-                return super.visitMapping(mapping, anchors);
-            }
-
-            @Override
-            public Yaml.Sequence visitSequence(Yaml.Sequence sequence, Set<String> anchors) {
-                add(sequence.getAnchor(), anchors);
-                return super.visitSequence(sequence, anchors);
-            }
-
-            @Override
-            public Yaml.Scalar visitScalar(Yaml.Scalar scalar, Set<String> anchors) {
-                add(scalar.getAnchor(), anchors);
-                return scalar;
-            }
-
-            @Override
-            public Yaml.Alias visitAlias(Yaml.Alias alias, Set<String> anchors) {
-                return alias;
-            }
-
-            private void add(Yaml.@Nullable Anchor anchor, Set<String> anchors) {
-                if (anchor != null) {
-                    anchors.add(anchor.getKey());
-                }
-            }
-        }.reduce(entry, new HashSet<>());
-    }
-
-    private static Set<String> aliasesIn(Yaml.Mapping.Entry entry) {
-        return new YamlIsoVisitor<Set<String>>() {
-            @Override
-            public Yaml.Alias visitAlias(Yaml.Alias alias, Set<String> aliases) {
-                aliases.add(alias.getAnchor().getKey());
-                return alias;
-            }
-        }.reduce(entry, new HashSet<>());
     }
 }
