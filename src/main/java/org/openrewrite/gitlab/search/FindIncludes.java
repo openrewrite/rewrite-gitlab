@@ -21,8 +21,8 @@ import org.jspecify.annotations.Nullable;
 import org.openrewrite.*;
 import org.openrewrite.gitlab.YamlAnchors;
 import org.openrewrite.gitlab.table.GitLabIncludes;
-import org.openrewrite.internal.ListUtils;
 import org.openrewrite.marker.SearchResult;
+import org.openrewrite.yaml.JsonPathMatcher;
 import org.openrewrite.yaml.YamlIsoVisitor;
 import org.openrewrite.yaml.tree.Yaml;
 
@@ -48,6 +48,12 @@ public class FindIncludes extends Recipe {
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
+        JsonPathMatcher includeMatcher = new JsonPathMatcher("$.include");
+        JsonPathMatcher includeListMatcher = new JsonPathMatcher("$.include[*]");
+        Map<String, JsonPathMatcher> typeMatchers = new HashMap<>();
+        for (String type : TYPES) {
+            typeMatchers.put(type, new JsonPathMatcher("$.include." + type));
+        }
         return Preconditions.check(new FindSourceFiles(".gitlab-ci.yml"), new YamlIsoVisitor<ExecutionContext>() {
             private Map<UUID, Yaml> aliases = emptyMap();
 
@@ -58,65 +64,60 @@ public class FindIncludes extends Recipe {
             }
 
             @Override
-            public Yaml.Mapping.Entry visitMappingEntry(Yaml.Mapping.Entry entry, ExecutionContext ctx) {
-                Yaml.Mapping.Entry e = super.visitMappingEntry(entry, ctx);
-                if (!"include".equals(e.getKey().getValue()) ||
-                    !(getCursor().getParentTreeCursor().getParentTreeCursor().getValue() instanceof Yaml.Document)) {
-                    return e;
+            public Yaml.Sequence.Entry visitSequenceEntry(Yaml.Sequence.Entry entry, ExecutionContext ctx) {
+                Yaml.Sequence.Entry e = super.visitSequenceEntry(entry, ctx);
+                Yaml.Mapping.Entry parent = getCursor().firstEnclosing(Yaml.Mapping.Entry.class);
+                if (e.getBlock() instanceof Yaml.Scalar && parent != null && "include".equals(parent.getKey().getValue()) &&
+                    includeListMatcher.matches(getCursor())) {
+                    return e.withBlock(includePath((Yaml.Scalar) e.getBlock(), ctx));
                 }
-                String sourcePath = getCursor().firstEnclosingOrThrow(Yaml.Documents.class).getSourcePath().toString();
-                if (e.getValue() instanceof Yaml.Sequence) {
-                    Yaml.Sequence sequence = (Yaml.Sequence) e.getValue();
-                    return e.withValue(sequence.withEntries(ListUtils.map(sequence.getEntries(),
-                            it -> it.withBlock(include(it.getBlock(), sourcePath, ctx)))));
-                }
-                return e.withValue(include(e.getValue(), sourcePath, ctx));
+                return e;
             }
 
-            private Yaml.Block include(Yaml.Block include, String sourcePath, ExecutionContext ctx) {
-                if (include instanceof Yaml.Scalar) {
-                    String path = ((Yaml.Scalar) include).getValue();
-                    String type = path.startsWith("http://") || path.startsWith("https://") ? "remote" : "local";
-                    includes.insertRow(ctx, new GitLabIncludes.Row(sourcePath, type, path, null, null));
-                    return SearchResult.found(include);
+            @Override
+            public Yaml.Mapping.Entry visitMappingEntry(Yaml.Mapping.Entry entry, ExecutionContext ctx) {
+                Yaml.Mapping.Entry e = super.visitMappingEntry(entry, ctx);
+                String type = e.getKey().getValue();
+                if ("include".equals(type) && e.getValue() instanceof Yaml.Scalar && includeMatcher.matches(getCursor())) {
+                    return e.withValue(includePath((Yaml.Scalar) e.getValue(), ctx));
                 }
-                if (!(include instanceof Yaml.Mapping)) {
-                    return include;
+                JsonPathMatcher typeMatcher = typeMatchers.get(type);
+                String value = scalar(e.getValue());
+                if (typeMatcher == null || value == null || !typeMatcher.matches(getCursor())) {
+                    return e;
                 }
-                Yaml.Mapping mapping = (Yaml.Mapping) include;
-                Yaml.Mapping.Entry typeEntry = null;
-                for (Yaml.Mapping.Entry entry : mapping.getEntries()) {
-                    if (TYPES.contains(entry.getKey().getValue())) {
-                        typeEntry = entry;
-                        break;
-                    }
-                }
-                String value = typeEntry == null ? null : scalar(typeEntry.getValue());
-                if (value == null) {
-                    return include;
-                }
-                String type = typeEntry.getKey().getValue();
-                String inputs = inputs(value(mapping, "inputs"));
+                String sourcePath = sourcePath();
+                Yaml.Mapping include = getCursor().getParentTreeCursor().getValue();
+                String inputs = inputs(value(include, "inputs"));
                 List<GitLabIncludes.Row> rows = new ArrayList<>();
                 if ("component".equals(type)) {
                     int at = value.lastIndexOf('@');
                     rows.add(new GitLabIncludes.Row(sourcePath, type,
                             at < 0 ? value : value.substring(0, at), at < 0 ? null : value.substring(at + 1), inputs));
                 } else if ("project".equals(type)) {
-                    String ref = scalar(value(mapping, "ref"));
-                    for (String file : files(value(mapping, "file"))) {
+                    String ref = scalar(value(include, "ref"));
+                    for (String file : files(value(include, "file"))) {
                         rows.add(new GitLabIncludes.Row(sourcePath, type, value + ":" + file, ref, inputs));
                     }
                 } else {
                     rows.add(new GitLabIncludes.Row(sourcePath, type, value, null, inputs));
                 }
                 if (rows.isEmpty()) {
-                    return include;
+                    return e;
                 }
                 rows.forEach(row -> includes.insertRow(ctx, row));
-                Yaml.Mapping.Entry found = typeEntry;
-                return mapping.withEntries(ListUtils.map(mapping.getEntries(),
-                        it -> it == found ? SearchResult.found(it) : it));
+                return SearchResult.found(e);
+            }
+
+            private Yaml.Scalar includePath(Yaml.Scalar include, ExecutionContext ctx) {
+                String path = include.getValue();
+                String type = path.startsWith("http://") || path.startsWith("https://") ? "remote" : "local";
+                includes.insertRow(ctx, new GitLabIncludes.Row(sourcePath(), type, path, null, null));
+                return SearchResult.found(include);
+            }
+
+            private String sourcePath() {
+                return getCursor().firstEnclosingOrThrow(Yaml.Documents.class).getSourcePath().toString();
             }
 
             private List<String> files(Yaml.@Nullable Block file) {
