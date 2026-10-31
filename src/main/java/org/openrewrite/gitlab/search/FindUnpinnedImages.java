@@ -18,22 +18,16 @@ package org.openrewrite.gitlab.search;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.openrewrite.*;
+import org.openrewrite.gitlab.ImageKeywords;
+import org.openrewrite.gitlab.ImageReference;
 import org.openrewrite.internal.ListUtils;
 import org.openrewrite.marker.SearchResult;
 import org.openrewrite.yaml.YamlIsoVisitor;
 import org.openrewrite.yaml.tree.Yaml;
 
-import java.util.HashSet;
-import java.util.Set;
-
-import static java.util.Arrays.asList;
-
 @EqualsAndHashCode(callSuper = false)
 @Value
 public class FindUnpinnedImages extends Recipe {
-    private static final Set<String> NON_JOB_KEYWORDS = new HashSet<>(asList(
-            "include", "stages", "variables", "workflow", "spec"));
-
     String displayName = "Find unpinned images";
 
     String description = "Find `image` and `services` entries in `.gitlab-ci.yml` that use the `latest` tag " +
@@ -45,30 +39,15 @@ public class FindUnpinnedImages extends Recipe {
             @Override
             public Yaml.Mapping.Entry visitMappingEntry(Yaml.Mapping.Entry entry, ExecutionContext ctx) {
                 Yaml.Mapping.Entry e = super.visitMappingEntry(entry, ctx);
-                if (!atGlobalOrJobLevel()) {
-                    return e;
-                }
-                String key = e.getKey().getValue();
-                if ("image".equals(key)) {
+                if (ImageKeywords.isImage(getCursor())) {
                     return e.withValue(markUnpinned(e.getValue()));
                 }
-                if ("services".equals(key) && e.getValue() instanceof Yaml.Sequence) {
+                if (ImageKeywords.isServices(getCursor()) && e.getValue() instanceof Yaml.Sequence) {
                     Yaml.Sequence services = (Yaml.Sequence) e.getValue();
                     return e.withValue(services.withEntries(ListUtils.map(services.getEntries(),
                             service -> service.withBlock(markUnpinned(service.getBlock())))));
                 }
                 return e;
-            }
-
-            private boolean atGlobalOrJobLevel() {
-                Cursor mapping = getCursor().getParentTreeCursor();
-                Cursor parent = mapping.getParentTreeCursor();
-                if (parent.getValue() instanceof Yaml.Document) {
-                    return true;
-                }
-                return parent.getValue() instanceof Yaml.Mapping.Entry &&
-                       !NON_JOB_KEYWORDS.contains(((Yaml.Mapping.Entry) parent.getValue()).getKey().getValue()) &&
-                       parent.getParentTreeCursor().getParentTreeCursor().getValue() instanceof Yaml.Document;
             }
         });
     }
@@ -86,15 +65,14 @@ public class FindUnpinnedImages extends Recipe {
     }
 
     private static boolean isUnpinned(String image) {
-        String name = image.substring(image.lastIndexOf('/') + 1);
-        if (name.isEmpty() || name.contains("@")) {
+        ImageReference reference = ImageReference.parse(image);
+        if (reference.getDigest() != null || reference.getRepository().isEmpty()) {
             return false;
         }
-        int colon = name.lastIndexOf(':');
-        if (colon >= 0) {
-            return "latest".equals(name.substring(colon + 1));
+        if (reference.getTag() != null) {
+            return "latest".equals(reference.getTag());
         }
         // A variable may hold the tag
-        return !name.contains("$");
+        return !reference.getRepository().contains("$");
     }
 }
