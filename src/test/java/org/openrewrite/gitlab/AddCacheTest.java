@@ -140,5 +140,21 @@ class AddCacheTest implements RewriteTest {
               )
             );
         }
+
+        @Test
+        void noopWhenJobMissing() {
+            //language=yaml
+            rewriteRun(
+              spec ->
+                spec.recipe(new AddCache("$CI_COMMIT_REF_SLUG", List.of("node_modules/"), null, "buidl", null)),
+              yaml(
+                """
+                  build:
+                    script: make build
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }

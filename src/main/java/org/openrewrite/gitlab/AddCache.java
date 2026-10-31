@@ -65,7 +65,6 @@ public class AddCache extends Recipe {
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
-        String target = jobName != null ? jobName : "default";
         StringBuilder snippet = new StringBuilder();
         snippet.append("cache:\n  key: ").append(key).append("\n  paths:\n");
         if (paths != null) {
@@ -76,6 +75,6 @@ public class AddCache extends Recipe {
         if (policy != null) {
             snippet.append("  policy: ").append(policy);
         }
-        return MergeKeyword.job(target, snippet.toString(), acceptTheirs).getVisitor();
+        return MergeKeyword.job(jobName, snippet.toString(), acceptTheirs).getVisitor();
     }
 }

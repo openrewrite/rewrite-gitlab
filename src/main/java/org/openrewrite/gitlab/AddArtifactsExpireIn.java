@@ -51,7 +51,6 @@ public class AddArtifactsExpireIn extends Recipe {
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
-        String target = jobName != null ? jobName : "default";
-        return MergeKeyword.job(target, "artifacts:\n  expire_in: " + expireIn, acceptTheirs).getVisitor();
+        return MergeKeyword.job(jobName, "artifacts:\n  expire_in: " + expireIn, acceptTheirs).getVisitor();
     }
 }

@@ -152,27 +152,81 @@ class AddTimeoutTest implements RewriteTest {
     }
 
     @Test
-    void addNewJobLast() {
+    void addToHiddenJob() {
         //language=yaml
         rewriteRun(
           spec ->
-            spec.recipe(new AddTimeout("30 minutes", "deploy_job", null)),
+            spec.recipe(new AddTimeout("30 minutes", ".build_template", null)),
           yaml(
             """
-              stages:
-                - build
+              .build_template:
+                script: make build
+              """,
+            """
+              .build_template:
+                timeout: 30 minutes
+                script: make build
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
 
+    @Test
+    void addToJobAfterSpecHeader() {
+        //language=yaml
+        rewriteRun(
+          spec ->
+            spec.recipe(new AddTimeout("30 minutes", "build_job", null)),
+          yaml(
+            """
+              spec:
+                inputs:
+                  stage:
+                    default: build
+              ---
               build_job:
                 script: make build
               """,
             """
-              stages:
-                - build
+              spec:
+                inputs:
+                  stage:
+                    default: build
+              ---
+              build_job:
+                timeout: 30 minutes
+                script: make build
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
 
+    @Test
+    void addDefaultAfterSpecHeader() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              spec:
+                inputs:
+                  stage:
+                    default: build
+              ---
               build_job:
                 script: make build
-              deploy_job:
-                timeout: 30 minutes
+              """,
+            """
+              spec:
+                inputs:
+                  stage:
+                    default: build
+              ---
+              default:
+                timeout: 1 hour
+              build_job:
+                script: make build
               """,
             source -> source.path(".gitlab-ci.yml")
           )
@@ -216,6 +270,78 @@ class AddTimeoutTest implements RewriteTest {
                 """
                   default:
                     timeout: 1 hour
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void noopWhenJobMissing() {
+            //language=yaml
+            rewriteRun(
+              spec ->
+                spec.recipe(new AddTimeout("30 minutes", "deploy_job", null)),
+              yaml(
+                """
+                  stages:
+                    - build
+
+                  build_job:
+                    script: make build
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void noopWhenJobOnlyInSpecHeader() {
+            //language=yaml
+            rewriteRun(
+              spec ->
+                spec.recipe(new AddTimeout("30 minutes", "spec", null)),
+              yaml(
+                """
+                  spec:
+                    inputs:
+                      stage:
+                        default: build
+                  ---
+                  build_job:
+                    script: make build
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void noopWhenJobIsAlias() {
+            //language=yaml
+            rewriteRun(
+              spec ->
+                spec.recipe(new AddTimeout("30 minutes", "test_job", null)),
+              yaml(
+                """
+                  build_job: &build
+                    script: make build
+                  test_job: *build
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void noopWhenJobIsEmpty() {
+            //language=yaml
+            rewriteRun(
+              spec ->
+                spec.recipe(new AddTimeout("30 minutes", "build_job", null)),
+              yaml(
+                """
+                  build_job:
                   """,
                 source -> source.path(".gitlab-ci.yml")
               )
