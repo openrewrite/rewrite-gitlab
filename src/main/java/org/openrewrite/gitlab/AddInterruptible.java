@@ -18,13 +18,10 @@ package org.openrewrite.gitlab;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
+import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.yaml.MergeYaml;
-
-import java.util.List;
-
-import static java.util.Collections.singletonList;
+import org.openrewrite.TreeVisitor;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
@@ -48,19 +45,14 @@ public class AddInterruptible extends Recipe {
     String description = "Set `interruptible: true` in `.gitlab-ci.yml` to allow pipelines to be cancelled when superseded.";
 
     @Override
-    public List<Recipe> getRecipeList() {
+    public TreeVisitor<?, ExecutionContext> getVisitor() {
         String target = jobName != null ? jobName : "default";
-        return singletonList(
-                new MergeYaml(
-                        "$",
-                        //language=yml
-                        target + ":\n  interruptible: true",
-                        acceptTheirs,
-                        null,
-                        ".gitlab-ci.yml",
-                        null,
-                        null,
-                        null)
-        );
+        return MergeKeyword.job(
+                target,
+                "interruptible",
+                //language=yml
+                target + ":\n  interruptible: true",
+                acceptTheirs)
+                .getVisitor();
     }
 }

@@ -18,13 +18,12 @@ package org.openrewrite.gitlab;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
+import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.yaml.MergeYaml;
+import org.openrewrite.TreeVisitor;
 
 import java.util.List;
-
-import static java.util.Collections.singletonList;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
@@ -65,7 +64,7 @@ public class AddCache extends Recipe {
     String description = "Add `cache` configuration to `.gitlab-ci.yml` for faster builds.";
 
     @Override
-    public List<Recipe> getRecipeList() {
+    public TreeVisitor<?, ExecutionContext> getVisitor() {
         String target = jobName != null ? jobName : "default";
         StringBuilder snippet = new StringBuilder();
         snippet.append(target).append(":\n  cache:\n    key: ").append(key).append("\n    paths:\n");
@@ -77,17 +76,12 @@ public class AddCache extends Recipe {
         if (policy != null) {
             snippet.append("    policy: ").append(policy);
         }
-        return singletonList(
-                new MergeYaml(
-                        "$",
-                        //language=yml
-                        snippet.toString(),
-                        acceptTheirs,
-                        null,
-                        ".gitlab-ci.yml",
-                        null,
-                        null,
-                        null)
-        );
+        return MergeKeyword.job(
+                target,
+                "cache",
+                //language=yml
+                snippet.toString(),
+                acceptTheirs)
+                .getVisitor();
     }
 }

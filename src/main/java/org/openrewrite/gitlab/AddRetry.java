@@ -18,13 +18,12 @@ package org.openrewrite.gitlab;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
+import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.yaml.MergeYaml;
+import org.openrewrite.TreeVisitor;
 
 import java.util.List;
-
-import static java.util.Collections.singletonList;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
@@ -60,7 +59,7 @@ public class AddRetry extends Recipe {
     String description = "Add `retry` configuration to `.gitlab-ci.yml` for resilience against infrastructure failures.";
 
     @Override
-    public List<Recipe> getRecipeList() {
+    public TreeVisitor<?, ExecutionContext> getVisitor() {
         String target = jobName != null ? jobName : "default";
         StringBuilder snippet = new StringBuilder();
         snippet.append(target).append(":\n  retry:\n    max: ").append(max);
@@ -70,17 +69,12 @@ public class AddRetry extends Recipe {
                 snippet.append("      - ").append(w).append("\n");
             }
         }
-        return singletonList(
-                new MergeYaml(
-                        "$",
-                        //language=yml
-                        snippet.toString(),
-                        acceptTheirs,
-                        null,
-                        ".gitlab-ci.yml",
-                        null,
-                        null,
-                        null)
-        );
+        return MergeKeyword.job(
+                target,
+                "retry",
+                //language=yml
+                snippet.toString(),
+                acceptTheirs)
+                .getVisitor();
     }
 }

@@ -18,13 +18,10 @@ package org.openrewrite.gitlab;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
+import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.yaml.MergeYaml;
-
-import java.util.List;
-
-import static java.util.Collections.singletonList;
+import org.openrewrite.TreeVisitor;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
@@ -46,18 +43,15 @@ public class AddWorkflowRules extends Recipe {
     String description = "Add `workflow:rules` to `.gitlab-ci.yml` to control pipeline creation.";
 
     @Override
-    public List<Recipe> getRecipeList() {
-        return singletonList(
-                new MergeYaml(
-                        "$",
-                        //language=yml
-                        "workflow:\n  rules:\n    " + (rules == null ? "" : rules.replace("\n", "\n    ")),
-                        acceptTheirs,
-                        null,
-                        ".gitlab-ci.yml",
-                        null,
-                        null,
-                        null)
-        );
+    public TreeVisitor<?, ExecutionContext> getVisitor() {
+        return MergeKeyword.global(
+                "workflow",
+                //language=yml
+                "workflow:\n  rules:\n    " + (rules == null ? "" : rules.replace("\n", "\n    ")),
+                acceptTheirs,
+                null,
+                null,
+                null)
+                .getVisitor();
     }
 }

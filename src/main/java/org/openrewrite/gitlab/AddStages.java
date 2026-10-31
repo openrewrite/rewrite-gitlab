@@ -26,8 +26,6 @@ import org.openrewrite.yaml.MergeYaml.InsertMode;
 
 import java.util.List;
 
-import static java.util.Collections.singletonList;
-
 @EqualsAndHashCode(callSuper = false)
 @Value
 public class AddStages extends Recipe {
@@ -62,7 +60,7 @@ public class AddStages extends Recipe {
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
-        return new MergeTopLevelKey(
+        return MergeKeyword.global(
                 "stages",
                 //language=yml
                 "stages:\n" +
@@ -70,8 +68,7 @@ public class AddStages extends Recipe {
                 acceptTheirs,
                 "stages",
                 insertMode,
-                insertProperty,
-                singletonList("include"))
+                insertProperty)
                 .getVisitor();
     }
 }

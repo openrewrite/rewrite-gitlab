@@ -86,11 +86,11 @@ class AddCacheTest implements RewriteTest {
               """,
             """
               build_job:
-                script: npm install
                 cache:
                   key: $CI_COMMIT_REF_SLUG
                   paths:
                     - node_modules/
+                script: npm install
               """,
             source -> source.path(".gitlab-ci.yml")
           )

@@ -106,11 +106,11 @@ class AddRetryTest implements RewriteTest {
               """,
             """
               build_job:
-                script: make build
                 retry:
                   max: 2
                   when:
                     - script_failure
+                script: make build
               """,
             source -> source.path(".gitlab-ci.yml")
           )

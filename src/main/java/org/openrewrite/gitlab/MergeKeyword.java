@@ -31,13 +31,15 @@ import org.openrewrite.yaml.tree.Yaml;
 import java.util.List;
 
 import static java.util.Collections.emptyList;
+import static java.util.stream.Collectors.toList;
 
-/// Merges a top-level key into `.gitlab-ci.yml`. A key that is not yet present is placed near the top of the
-/// file, after the first of `predecessors` that is present, rather than appended after the jobs. The insert mode
-/// and property only position new entries within a key that is already present.
+/// Merges a snippet into `.gitlab-ci.yml`, placing a top-level `key` or a `jobKeyword` within it that is not yet
+/// present where [KeywordOrder] puts it, rather than appending it after the jobs. The insert mode and property only
+/// position new entries within a top-level list that is already present, such as `include` or `stages`.
 @RequiredArgsConstructor
-class MergeTopLevelKey {
+class MergeKeyword {
     private final String key;
+    private final @Nullable String jobKeyword;
 
     @Language("yml")
     private final String yaml;
@@ -46,7 +48,17 @@ class MergeTopLevelKey {
     private final @Nullable String objectIdentifyingProperty;
     private final @Nullable InsertMode insertMode;
     private final @Nullable String insertProperty;
-    private final List<String> predecessors;
+
+    static MergeKeyword global(String key, @Language("yml") String yaml, @Nullable Boolean acceptTheirs,
+                               @Nullable String objectIdentifyingProperty,
+                               @Nullable InsertMode insertMode, @Nullable String insertProperty) {
+        return new MergeKeyword(key, null, yaml, acceptTheirs, objectIdentifyingProperty, insertMode, insertProperty);
+    }
+
+    /// Merges a keyword into the `default` section or a job.
+    static MergeKeyword job(String job, String keyword, @Language("yml") String yaml, @Nullable Boolean acceptTheirs) {
+        return new MergeKeyword(job, keyword, yaml, acceptTheirs, null, null, null);
+    }
 
     TreeVisitor<?, ExecutionContext> getVisitor() {
         return Preconditions.check(new FindSourceFiles(".gitlab-ci.yml"), new TreeVisitor<Tree, ExecutionContext>() {
@@ -69,28 +81,49 @@ class MergeTopLevelKey {
     }
 
     private Yaml.Documents merge(Yaml.Documents documents, ExecutionContext ctx) {
-        List<Yaml.Mapping.Entry> entries = rootEntries(documents.getDocuments().get(0));
         InsertMode mode = insertMode;
         String property = insertProperty;
-        if (!entries.isEmpty() && entries.stream().noneMatch(e -> key.equals(e.getKey().getValue()))) {
-            String predecessor = predecessors.stream()
-                    .filter(p -> entries.stream().anyMatch(e -> p.equals(e.getKey().getValue())))
-                    .findFirst()
-                    .orElse(null);
-            mode = predecessor == null ? InsertMode.Before : InsertMode.After;
-            property = predecessor == null ? entries.get(0).getKey().getValue() : predecessor;
+        KeywordOrder.Placement placement = placement(documents.getDocuments().get(0).getBlock());
+        if (placement != null) {
+            mode = placement.getMode();
+            property = placement.getProperty();
         }
         return (Yaml.Documents) new MergeYaml("$", yaml, acceptTheirs, objectIdentifyingProperty, null, mode, property, null)
                 .getVisitor()
                 .visitNonNull(documents, ctx);
     }
 
+    // MergeYaml applies the insert mode and property to every mapping it adds entries to, so a placement is only
+    // computed for the one mapping that lacks the key being added
+    private KeywordOrder.@Nullable Placement placement(Yaml.Block root) {
+        List<Yaml.Mapping.Entry> rootEntries = entries(root);
+        Yaml.Mapping.Entry existing = find(rootEntries, key);
+        if (existing == null) {
+            return KeywordOrder.GLOBAL.placement(keys(rootEntries), key);
+        }
+        if (jobKeyword != null && existing.getValue() instanceof Yaml.Mapping) {
+            List<Yaml.Mapping.Entry> jobEntries = entries(existing.getValue());
+            if (find(jobEntries, jobKeyword) == null) {
+                return KeywordOrder.JOB.placement(keys(jobEntries), jobKeyword);
+            }
+        }
+        return null;
+    }
+
     private static boolean isHeader(Yaml.Document document) {
-        List<Yaml.Mapping.Entry> entries = rootEntries(document);
+        List<Yaml.Mapping.Entry> entries = entries(document.getBlock());
         return entries.size() == 1 && "spec".equals(entries.get(0).getKey().getValue());
     }
 
-    private static List<Yaml.Mapping.Entry> rootEntries(Yaml.Document document) {
-        return document.getBlock() instanceof Yaml.Mapping ? ((Yaml.Mapping) document.getBlock()).getEntries() : emptyList();
+    private static List<Yaml.Mapping.Entry> entries(Yaml.Block block) {
+        return block instanceof Yaml.Mapping ? ((Yaml.Mapping) block).getEntries() : emptyList();
+    }
+
+    private static Yaml.Mapping.@Nullable Entry find(List<Yaml.Mapping.Entry> entries, String key) {
+        return entries.stream().filter(e -> key.equals(e.getKey().getValue())).findFirst().orElse(null);
+    }
+
+    private static List<String> keys(List<Yaml.Mapping.Entry> entries) {
+        return entries.stream().map(e -> e.getKey().getValue()).collect(toList());
     }
 }

@@ -24,8 +24,6 @@ import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
 import org.openrewrite.yaml.MergeYaml.InsertMode;
 
-import static java.util.Collections.emptyList;
-
 @EqualsAndHashCode(callSuper = false)
 @Value
 public class AddTemplate extends Recipe {
@@ -56,14 +54,13 @@ public class AddTemplate extends Recipe {
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
-        return new MergeTopLevelKey(
+        return MergeKeyword.global(
                 "include",
                 "include:\n - template: " + newTemplate,
                 false,
                 "template",
                 insertMode,
-                insertProperty,
-                emptyList())
+                insertProperty)
                 .getVisitor();
     }
 }

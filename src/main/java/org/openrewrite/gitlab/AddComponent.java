@@ -26,8 +26,6 @@ import org.openrewrite.yaml.MergeYaml.InsertMode;
 
 import java.util.List;
 
-import static java.util.Collections.emptyList;
-
 @EqualsAndHashCode(callSuper = false)
 @Value
 public class AddComponent extends Recipe {
@@ -82,15 +80,14 @@ public class AddComponent extends Recipe {
             inputs.forEach(input -> includeBlock.append("     ").append(input).append("\n"));
         }
 
-        return new MergeTopLevelKey(
+        return MergeKeyword.global(
                 "include",
                 //language=yml
                 includeBlock.toString(),
                 false,
                 "component",
                 insertMode,
-                insertProperty,
-                emptyList())
+                insertProperty)
                 .getVisitor();
     }
 }

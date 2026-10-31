@@ -56,8 +56,8 @@ class AddDefaultKeywordTest implements RewriteTest {
               """,
             """
               default:
-                interruptible: true
                 image: ruby:3.0
+                interruptible: true
               """,
             source -> source.path(".gitlab-ci.yml")
           )

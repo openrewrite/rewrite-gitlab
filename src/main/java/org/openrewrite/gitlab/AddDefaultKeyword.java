@@ -18,13 +18,10 @@ package org.openrewrite.gitlab;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
+import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.yaml.MergeYaml;
-
-import java.util.List;
-
-import static java.util.Collections.singletonList;
+import org.openrewrite.TreeVisitor;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
@@ -51,18 +48,13 @@ public class AddDefaultKeyword extends Recipe {
     String description = "Add or update a keyword in the `default` section of `.gitlab-ci.yml`.";
 
     @Override
-    public List<Recipe> getRecipeList() {
-        return singletonList(
-                new MergeYaml(
-                        "$",
-                        //language=yml
-                        "default:\n  " + keyword + ": " + value,
-                        acceptTheirs,
-                        null,
-                        ".gitlab-ci.yml",
-                        null,
-                        null,
-                        null)
-        );
+    public TreeVisitor<?, ExecutionContext> getVisitor() {
+        return MergeKeyword.job(
+                "default",
+                keyword,
+                //language=yml
+                "default:\n  " + keyword + ": " + value,
+                acceptTheirs)
+                .getVisitor();
     }
 }
