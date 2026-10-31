@@ -102,6 +102,24 @@ class MigrateTemplateToComponentTest implements RewriteTest {
     }
 
     @Test
+    void keepIncludeThatDefinesAnAnchor() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - template: Terraform/Base.latest.gitlab-ci.yml
+                  inputs:
+                    opentofu_version: &opentofu_version 1.6.0
+              variables:
+                OPENTOFU_VERSION: *opentofu_version
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void noopWhenTemplateAbsent() {
         //language=yaml
         rewriteRun(
