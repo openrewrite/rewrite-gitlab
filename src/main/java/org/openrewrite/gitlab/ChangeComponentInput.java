@@ -24,7 +24,6 @@ import org.openrewrite.yaml.YamlIsoVisitor;
 import org.openrewrite.yaml.YamlParser;
 import org.openrewrite.yaml.tree.Yaml;
 
-import java.util.Set;
 import java.util.function.Predicate;
 
 import static java.util.Collections.emptySet;
