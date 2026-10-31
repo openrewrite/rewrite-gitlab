@@ -15,6 +15,7 @@
  */
 package org.openrewrite.gitlab;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
@@ -63,38 +64,6 @@ class AddStagesTest implements RewriteTest {
                 - build
                 - test
                 - deploy
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void noopWhenAlreadyPresent() {
-        //language=yaml
-        rewriteRun(
-          yaml(
-            """
-              stages:
-                - build
-                - test
-                - deploy
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void retainExisting() {
-        //language=yaml
-        rewriteRun(
-          spec ->
-            spec.recipe(new AddStages(List.of("build", "test", "deploy"), true)),
-          yaml(
-            """
-              stages:
-                - build
               """,
             source -> source.path(".gitlab-ci.yml")
           )
@@ -240,5 +209,40 @@ class AddStagesTest implements RewriteTest {
             source -> source.path(".gitlab-ci.yml")
           )
         );
+    }
+
+    @Nested
+    class NoChange {
+        @Test
+        void noopWhenAlreadyPresent() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  stages:
+                    - build
+                    - test
+                    - deploy
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void retainExisting() {
+            //language=yaml
+            rewriteRun(
+              spec ->
+                spec.recipe(new AddStages(List.of("build", "test", "deploy"), true)),
+              yaml(
+                """
+                  stages:
+                    - build
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }

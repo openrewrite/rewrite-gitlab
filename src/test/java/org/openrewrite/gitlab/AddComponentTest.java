@@ -15,6 +15,7 @@
  */
 package org.openrewrite.gitlab;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.Issue;
@@ -71,41 +72,6 @@ class AddComponentTest implements RewriteTest {
                   inputs:
                     version: 0.10.0
                     opentofu_version: 1.6.1
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void noopWhenAlreadyPresent() {
-        //language=yaml
-        rewriteRun(
-          yaml(
-            """
-              include:
-                - template: Gradle.gitlab-ci.yml
-                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
-                  inputs:
-                    version: 0.10.0
-                    opentofu_version: 1.6.1
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void noopWhenOtherVersionPresent() {
-        //language=yaml
-        rewriteRun(
-          yaml(
-            """
-              include:
-                - template: Gradle.gitlab-ci.yml
-                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.9.0
-                  inputs:
-                    version: 0.9.0
               """,
             source -> source.path(".gitlab-ci.yml")
           )
@@ -270,5 +236,43 @@ class AddComponentTest implements RewriteTest {
             source -> source.path(".gitlab-ci.yml")
           )
         );
+    }
+
+    @Nested
+    class NoChange {
+        @Test
+        void noopWhenAlreadyPresent() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  include:
+                    - template: Gradle.gitlab-ci.yml
+                    - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                      inputs:
+                        version: 0.10.0
+                        opentofu_version: 1.6.1
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void noopWhenOtherVersionPresent() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  include:
+                    - template: Gradle.gitlab-ci.yml
+                    - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.9.0
+                      inputs:
+                        version: 0.9.0
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }

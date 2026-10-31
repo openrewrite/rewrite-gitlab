@@ -15,6 +15,7 @@
  */
 package org.openrewrite.gitlab;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
@@ -108,21 +109,24 @@ class AddWorkflowRulesTest implements RewriteTest {
         );
     }
 
-    @Test
-    void noopWhenAlreadyPresent() {
-        //language=yaml
-        rewriteRun(
-          yaml(
-            """
-              workflow:
-                rules:
-                  - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-                  - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
-                    when: never
-                  - if: $CI_COMMIT_BRANCH
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
+    @Nested
+    class NoChange {
+        @Test
+        void noopWhenAlreadyPresent() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  workflow:
+                    rules:
+                      - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+                      - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+                        when: never
+                      - if: $CI_COMMIT_BRANCH
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }

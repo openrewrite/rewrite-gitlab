@@ -15,6 +15,7 @@
  */
 package org.openrewrite.gitlab.search;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
@@ -53,20 +54,23 @@ class FindComponentTest implements RewriteTest {
         );
     }
 
-    @Test
-    void notExists() {
-        //language=yaml
-        rewriteRun(
-          yaml(
-            """
-              include:
-                - component: $CI_SERVER_FQDN/components/opentofu/job-templates@0.10.0
-                  inputs:
-                    version: 0.10.0
-                    opentofu_version: 1.6.1
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
+    @Nested
+    class NoChange {
+        @Test
+        void notExists() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  include:
+                    - component: $CI_SERVER_FQDN/components/opentofu/job-templates@0.10.0
+                      inputs:
+                        version: 0.10.0
+                        opentofu_version: 1.6.1
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }

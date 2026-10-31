@@ -15,6 +15,7 @@
  */
 package org.openrewrite.gitlab;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RewriteTest;
@@ -143,43 +144,46 @@ class ChangeComponentTest implements RewriteTest {
         );
     }
 
-    @Test
-    void mismatchedOldVersion() {
-        rewriteRun(spec -> spec.recipe(
-            new ChangeComponent(
-              "some-component",
-              "1.+",
-              "other-component",
-              "2.0"
-            )),
-          //language=yaml
-          yaml(
-            """
-              include:
-                - component: some-component@2.0
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
+    @Nested
+    class NoChange {
+        @Test
+        void mismatchedOldVersion() {
+            rewriteRun(spec -> spec.recipe(
+                new ChangeComponent(
+                  "some-component",
+                  "1.+",
+                  "other-component",
+                  "2.0"
+                )),
+              //language=yaml
+              yaml(
+                """
+                  include:
+                    - component: some-component@2.0
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
 
-    @Test
-    void mismatchedComponent() {
-        rewriteRun(spec -> spec.recipe(
-            new ChangeComponent(
-              "some-component",
-              "1.+",
-              "other-component",
-              "2.0"
-            )),
-          //language=yaml
-          yaml(
-            """
-              include:
-                - component: other-component@1.0
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
+        @Test
+        void mismatchedComponent() {
+            rewriteRun(spec -> spec.recipe(
+                new ChangeComponent(
+                  "some-component",
+                  "1.+",
+                  "other-component",
+                  "2.0"
+                )),
+              //language=yaml
+              yaml(
+                """
+                  include:
+                    - component: other-component@1.0
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }

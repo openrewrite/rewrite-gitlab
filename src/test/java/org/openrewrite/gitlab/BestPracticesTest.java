@@ -15,6 +15,7 @@
  */
 package org.openrewrite.gitlab;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
@@ -66,34 +67,37 @@ class BestPracticesTest implements RewriteTest {
         );
     }
 
-    @Test
-    void noopWhenAlreadyPresent() {
-        //language=yaml
-        rewriteRun(
-          yaml(
-            """
-              stages:
-                - build
-                - test
-              workflow:
-                rules:
-                  - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-                  - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
-                    when: never
-                  - if: $CI_COMMIT_BRANCH
-              default:
-                interruptible: true
-                timeout: 1 hour
-                retry:
-                  max: 2
-                  when:
-                    - runner_system_failure
-                    - stuck_or_timeout_failure
-                artifacts:
-                  expire_in: 1 week
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
+    @Nested
+    class NoChange {
+        @Test
+        void noopWhenAlreadyPresent() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  stages:
+                    - build
+                    - test
+                  workflow:
+                    rules:
+                      - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+                      - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+                        when: never
+                      - if: $CI_COMMIT_BRANCH
+                  default:
+                    interruptible: true
+                    timeout: 1 hour
+                    retry:
+                      max: 2
+                      when:
+                        - runner_system_failure
+                        - stuck_or_timeout_failure
+                    artifacts:
+                      expire_in: 1 week
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }
