@@ -147,6 +147,27 @@ class ChangeImageTest implements RewriteTest {
     }
 
     @Test
+    void changeServicesInFlowSequence() {
+        rewriteRun(
+          spec -> spec.recipe(new ChangeImage("postgres", null, null, "16")),
+          //language=yaml
+          yaml(
+            """
+              test:
+                services: [postgres:15, redis:7.2]
+                script: test
+              """,
+            """
+              test:
+                services: [postgres:16, redis:7.2]
+                script: test
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void changeAnchoredScalarOnce() {
         //language=yaml
         rewriteRun(
@@ -422,6 +443,21 @@ class ChangeImageTest implements RewriteTest {
                     variables:
                       image: eclipse-temurin:17
                     script: build
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void compactFlowMappingParsedAsScalar() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  build:
+                    image: {name: eclipse-temurin:17}
+                    script: ./mvnw verify
                   """,
                 source -> source.path(".gitlab-ci.yml")
               )
