@@ -85,7 +85,8 @@ public class MigrateToRules extends Recipe {
 
                         Set<UUID> conflicts = getCursor().getNearestMessage(INHERITANCE_CONFLICTS, emptySet());
                         if (onlyEntry == null && exceptEntry == null || conflicts.contains(m.getId()) ||
-                            definesAnchor(onlyEntry) || definesAnchor(exceptEntry)) {
+                            definesAnchor(onlyEntry) || definesAnchor(exceptEntry) ||
+                            aliasesAnchorBetween(m.getEntries(), onlyEntry, exceptEntry)) {
                             return m;
                         }
 
@@ -417,6 +418,19 @@ public class MigrateToRules extends Recipe {
     // Replacing the entry would drop the anchor and leave its aliases dangling
     private static boolean definesAnchor(Yaml.Mapping.@Nullable Entry entry) {
         return entry != null && !YamlAnchors.anchorsIn(entry.getValue()).isEmpty();
+    }
+
+    // The rules take the place of `only`, which would move an `except` alias ahead of an anchor defined in between
+    private static boolean aliasesAnchorBetween(List<Yaml.Mapping.Entry> entries, Yaml.Mapping.@Nullable Entry onlyEntry,
+                                                Yaml.Mapping.@Nullable Entry exceptEntry) {
+        if (onlyEntry == null || exceptEntry == null) {
+            return false;
+        }
+        Set<String> anchors = new HashSet<>();
+        for (int i = entries.indexOf(onlyEntry) + 1; i < entries.indexOf(exceptEntry); i++) {
+            anchors.addAll(YamlAnchors.anchorsIn(entries.get(i)));
+        }
+        return !disjoint(anchors, YamlAnchors.aliasesIn(exceptEntry));
     }
 
     static @Nullable List<String> extractRefs(Yaml.Sequence seq) {

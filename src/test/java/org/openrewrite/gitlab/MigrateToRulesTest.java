@@ -1079,6 +1079,26 @@ class MigrateToRulesTest implements RewriteTest {
         }
 
         @Test
+        void exceptAliasOfAnchorAfterOnly() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  test_job:
+                    only:
+                      - main
+                    cache:
+                      paths: &paths
+                        - src/**
+                    except:
+                      changes: *paths
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
         void anchoredChangesAliasedElsewhere() {
             rewriteRun(
               //language=yaml
