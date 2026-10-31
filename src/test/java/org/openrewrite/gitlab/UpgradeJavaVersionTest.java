@@ -140,8 +140,96 @@ class UpgradeJavaVersionTest implements RewriteTest {
         );
     }
 
+    @Test
+    void upgradeQuotedJavaVersionInput() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/maven-build@1
+                  inputs:
+                    java_version: "17"
+              """,
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/maven-build@1
+                  inputs:
+                    java_version: "21"
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void upgradeAnchoredJavaVersionInputOnce() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/maven-build@1
+                  inputs:
+                    java_version: &java 17
+                - component: $CI_SERVER_FQDN/group/gradle-build@1
+                  inputs:
+                    java_version: *java
+              """,
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/maven-build@1
+                  inputs:
+                    java_version: &java 21
+                - component: $CI_SERVER_FQDN/group/gradle-build@1
+                  inputs:
+                    java_version: *java
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
     @Nested
     class NoChange {
+        @Test
+        void javaVersionInputSameOrHigher() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  include:
+                    - component: $CI_SERVER_FQDN/group/maven-build@1
+                      inputs:
+                        java_version: 21
+                    - component: $CI_SERVER_FQDN/group/gradle-build@1
+                      inputs:
+                        java_version: 25
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void javaVersionInputNotAMajor() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  include:
+                    - component: $CI_SERVER_FQDN/group/maven-build@1
+                      inputs:
+                        java_version: 17.0.9
+                    - component: $CI_SERVER_FQDN/group/gradle-build@1
+                      inputs:
+                        java_version: $JAVA_VERSION
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
         @Test
         void alreadyOnSameOrHigherVersion() {
             //language=yaml

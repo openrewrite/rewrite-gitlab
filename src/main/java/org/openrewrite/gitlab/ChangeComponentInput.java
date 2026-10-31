@@ -25,6 +25,7 @@ import org.openrewrite.yaml.YamlParser;
 import org.openrewrite.yaml.tree.Yaml;
 
 import java.util.Set;
+import java.util.function.Predicate;
 
 import static java.util.Collections.emptySet;
 
@@ -79,6 +80,11 @@ public class ChangeComponentInput extends Recipe {
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
+        return getVisitor(value -> true);
+    }
+
+    /// Like [#getVisitor()], but only changes an existing value that `changeValue` accepts.
+    TreeVisitor<?, ExecutionContext> getVisitor(Predicate<Yaml.Scalar> changeValue) {
         ComponentMatcher matcher = new ComponentMatcher(component, version);
         return Preconditions.check(new FindSourceFiles(".gitlab-ci.yml"), new YamlIsoVisitor<ExecutionContext>() {
             @Override
@@ -95,7 +101,7 @@ public class ChangeComponentInput extends Recipe {
                 }
                 Yaml.Mapping inputs = ComponentInputs.inputs(m, getCursor().getNearestMessage(ALIASES, emptySet()));
                 Yaml.Mapping.Entry input = inputs == null ? null : ComponentInputs.find(inputs, inputName);
-                Yaml.Mapping.Entry changed = input == null ? null : change(input, inputs);
+                Yaml.Mapping.Entry changed = input == null ? null : change(input, inputs, changeValue);
                 if (changed == null) {
                     return m;
                 }
@@ -105,7 +111,8 @@ public class ChangeComponentInput extends Recipe {
         });
     }
 
-    private Yaml.Mapping.@Nullable Entry change(Yaml.Mapping.Entry input, Yaml.Mapping inputs) {
+    private Yaml.Mapping.@Nullable Entry change(Yaml.Mapping.Entry input, Yaml.Mapping inputs,
+                                                Predicate<Yaml.Scalar> changeValue) {
         Yaml.Mapping.Entry changed = input;
         if (newInputName != null && !newInputName.equals(inputName)) {
             if (!(input.getKey() instanceof Yaml.Scalar) || ComponentInputs.find(inputs, newInputName) != null) {
@@ -115,7 +122,8 @@ public class ChangeComponentInput extends Recipe {
         }
         if (newValue != null && !isValue(input.getValue(), newValue)) {
             // An alias takes its value from the anchor, which is defined and used elsewhere
-            if (!(input.getValue() instanceof Yaml.Scalar) || isBlockScalar((Yaml.Scalar) input.getValue())) {
+            if (!(input.getValue() instanceof Yaml.Scalar) || isBlockScalar((Yaml.Scalar) input.getValue()) ||
+                !changeValue.test((Yaml.Scalar) input.getValue())) {
                 return null;
             }
             Yaml.Scalar value = withValue((Yaml.Scalar) input.getValue(), newValue);

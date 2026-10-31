@@ -19,16 +19,15 @@ import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
 import org.openrewrite.*;
+import org.openrewrite.yaml.tree.Yaml;
 
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import static java.util.Collections.singletonList;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
 public class UpgradeJavaVersion extends Recipe {
+    private static final Pattern MAJOR = Pattern.compile("\\d{1,3}");
     private static final String SUFFIX = "(-[a-z][\\w.-]*)?";
 
     // A tag with a full Java version, such as `17.0.9_9-jdk`, is pinned on purpose and doesn't match
@@ -48,12 +47,20 @@ public class UpgradeJavaVersion extends Recipe {
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
-        return Preconditions.check(new FindSourceFiles(".gitlab-ci.yml"), new ChangeImageVisitor(this::upgrade));
+        TreeVisitor<?, ExecutionContext> javaVersionInput =
+                new ChangeComponentInput(null, null, "java_version", null, String.valueOf(version))
+                        .getVisitor(this::isLowerMajor);
+        return Preconditions.check(new FindSourceFiles(".gitlab-ci.yml"), new ChangeImageVisitor(this::upgrade) {
+            @Override
+            public Yaml.Documents visitDocuments(Yaml.Documents documents, ExecutionContext ctx) {
+                doAfterVisit(javaVersionInput);
+                return super.visitDocuments(documents, ctx);
+            }
+        });
     }
 
-    @Override
-    public List<Recipe> getRecipeList() {
-        return singletonList(new ChangeComponentInput(null, null, "java_version", null, String.valueOf(version)));
+    private boolean isLowerMajor(Yaml.Scalar javaVersion) {
+        return MAJOR.matcher(javaVersion.getValue()).matches() && Integer.parseInt(javaVersion.getValue()) < version;
     }
 
     private ImageReference upgrade(ImageReference reference) {
