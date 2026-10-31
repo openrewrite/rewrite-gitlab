@@ -487,6 +487,193 @@ class MigrateToRulesTest implements RewriteTest {
         );
     }
 
+    @Test
+    void migrateObjectFormRefs() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              deploy_job:
+                script: make deploy
+                only:
+                  refs: [main@group/project, /^release-.*$/, merge_requests]
+              """,
+            """
+              deploy_job:
+                script: make deploy
+                rules:
+                  - if: $CI_COMMIT_BRANCH == 'main' && $CI_PROJECT_PATH == 'group/project'
+                  - if: $CI_COMMIT_BRANCH =~ /^release-.*$/
+                  - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateObjectFormVariablesWithDefaultRefs() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              deploy_job:
+                script: make deploy
+                only:
+                  variables:
+                    - $RELEASE == "true"
+                    - $STAGING
+              """,
+            """
+              deploy_job:
+                script: make deploy
+                rules:
+                  - if: $CI_COMMIT_BRANCH && ($RELEASE == "true" || $STAGING)
+                  - if: $CI_COMMIT_TAG && ($RELEASE == "true" || $STAGING)
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateObjectFormRefsAndVariables() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              deploy_job:
+                script: make deploy
+                only:
+                  refs:
+                    - main@group/project
+                    - schedules
+                  variables:
+                    - '$CI_COMMIT_MESSAGE =~ /run-e2e/'
+              """,
+            """
+              deploy_job:
+                script: make deploy
+                rules:
+                  - if: $CI_COMMIT_BRANCH == 'main' && $CI_PROJECT_PATH == 'group/project' && $CI_COMMIT_MESSAGE =~ /run-e2e/
+                  - if: $CI_PIPELINE_SOURCE == 'schedule' && $CI_COMMIT_MESSAGE =~ /run-e2e/
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateObjectFormKubernetes() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              deploy_job:
+                script: make deploy
+                only:
+                  refs: [main]
+                  kubernetes: active
+              review_job:
+                script: make review
+                only:
+                  kubernetes: active
+              """,
+            """
+              deploy_job:
+                script: make deploy
+                rules:
+                  - if: $CI_COMMIT_BRANCH == 'main' && $CI_KUBERNETES_ACTIVE
+              review_job:
+                script: make review
+                rules:
+                  - if: $CI_COMMIT_BRANCH && $CI_KUBERNETES_ACTIVE
+                  - if: $CI_COMMIT_TAG && $CI_KUBERNETES_ACTIVE
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateObjectFormExcept() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              build_job:
+                script: make build
+                except:
+                  refs: [tags, main@group/project]
+                  variables:
+                    - $SKIP_BUILD
+                    - "!$CI_COMMIT_REF_PROTECTED"
+                  kubernetes: active
+              """,
+            """
+              build_job:
+                script: make build
+                rules:
+                  - if: $CI_COMMIT_TAG
+                    when: never
+                  - if: $CI_COMMIT_BRANCH == 'main' && $CI_PROJECT_PATH == 'group/project'
+                    when: never
+                  - if: $SKIP_BUILD
+                    when: never
+                  - if: "!$CI_COMMIT_REF_PROTECTED"
+                    when: never
+                  - if: $CI_KUBERNETES_ACTIVE
+                    when: never
+                  - when: always
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateObjectFormsOfOnlyAndExcept() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              deploy_job:
+                script: make deploy
+                only:
+                  refs: [main, merge_requests]
+                  variables: [$RELEASE == "true"]
+                except:
+                  refs: [tags]
+                  variables: [$SKIP]
+              test_job:
+                script: make test
+                only:
+                  refs: [branches]
+                except:
+                  - main
+              """,
+            """
+              deploy_job:
+                script: make deploy
+                rules:
+                  - if: $CI_COMMIT_TAG
+                    when: never
+                  - if: $SKIP
+                    when: never
+                  - if: $CI_COMMIT_BRANCH == 'main' && $RELEASE == "true"
+                  - if: $CI_PIPELINE_SOURCE == 'merge_request_event' && $RELEASE == "true"
+              test_job:
+                script: make test
+                rules:
+                  - if: $CI_COMMIT_BRANCH == 'main'
+                    when: never
+                  - if: $CI_COMMIT_BRANCH
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
     @Nested
     class NoChange {
         @Test
@@ -520,7 +707,7 @@ class MigrateToRulesTest implements RewriteTest {
         }
 
         @Test
-        void complexOnlyForm() {
+        void unknownObjectFormKey() {
             rewriteRun(
               //language=yaml
               yaml(
@@ -528,10 +715,8 @@ class MigrateToRulesTest implements RewriteTest {
                   build_job:
                     script: make build
                     only:
-                      refs:
-                        - main
-                      variables:
-                        - $DEPLOY
+                      refs: [main]
+                      unknown: [value]
                   """,
                 source -> source.path(".gitlab-ci.yml")
               )
@@ -539,18 +724,112 @@ class MigrateToRulesTest implements RewriteTest {
         }
 
         @Test
-        void complexExceptForm() {
+        void emptyObjectFormRefs() {
             rewriteRun(
               //language=yaml
               yaml(
                 """
                   build_job:
                     script: make build
-                    except:
-                      refs:
-                        - main
+                    only:
+                      refs: []
+                      variables: [$DEPLOY]
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void kubernetesOtherThanActive() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  deploy_job:
+                    script: make deploy
+                    only:
+                      kubernetes: inactive
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void aliasedObjectFormRefs() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  .refs:
+                    only: &refs
+                      - main
+                  build_job:
+                    script: make build
+                    only:
+                      refs: *refs
+                      variables: [$DEPLOY]
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void variablesWithEscapes() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  build_job:
+                    script: make build
+                    only:
                       variables:
+                        - "$CI_COMMIT_MESSAGE =~ /\\\\[deploy\\\\]/"
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void anchorInsideObjectForm() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  build_job:
+                    script: make build
+                    only:
+                      refs: [main]
+                      variables: &deploy_vars
                         - $DEPLOY
+                  test_job:
+                    script: make test
+                    only:
+                      variables: *deploy_vars
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void objectFormCombinedWithExtendedExcept() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  .no_tags:
+                    except:
+                      refs: [tags]
+                  deploy_job:
+                    extends: .no_tags
+                    script: make deploy
+                    only:
+                      refs: [main]
+                      variables: [$DEPLOY]
                   """,
                 source -> source.path(".gitlab-ci.yml")
               )
