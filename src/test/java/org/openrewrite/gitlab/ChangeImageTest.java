@@ -254,6 +254,66 @@ class ChangeImageTest implements RewriteTest {
     }
 
     @Test
+    void changeAnchorAlsoAliasedOutsideImages() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              .jdk: &jdk eclipse-temurin:17-jdk
+              variables:
+                BASE_IMAGE: *jdk
+              build:
+                image: *jdk
+                script: docker build --build-arg BASE_IMAGE .
+              """,
+            """
+              .jdk: &jdk eclipse-temurin:21-jdk
+              variables:
+                BASE_IMAGE: *jdk
+              build:
+                image: *jdk
+                script: docker build --build-arg BASE_IMAGE .
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void changeAnchorDefinedOutsideImages() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              variables:
+                BASE_IMAGE: &jdk eclipse-temurin:17-jdk
+              .images:
+                temurin: &temurin eclipse-temurin:17
+              build:
+                image: *jdk
+                script: docker build --build-arg BASE_IMAGE .
+              run:
+                image: *temurin
+                script: java -jar app.jar
+              """,
+            """
+              variables:
+                BASE_IMAGE: &jdk eclipse-temurin:21-jdk
+              .images:
+                temurin: &temurin eclipse-temurin:21-jdk
+              build:
+                image: *jdk
+                script: docker build --build-arg BASE_IMAGE .
+              run:
+                image: *temurin
+                script: java -jar app.jar
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void dropDigestWhenTagChanges() {
         //language=yaml
         rewriteRun(
@@ -368,41 +428,6 @@ class ChangeImageTest implements RewriteTest {
                   test:
                     image: registry.example.com/eclipse-temurin:17-jdk
                     script: ./mvnw test
-                  """,
-                source -> source.path(".gitlab-ci.yml")
-              )
-            );
-        }
-
-        @Test
-        void anchorAlsoUsedOutsideImages() {
-            //language=yaml
-            rewriteRun(
-              yaml(
-                """
-                  .jdk: &jdk eclipse-temurin:17-jdk
-                  variables:
-                    BASE_IMAGE: *jdk
-                  build:
-                    image: *jdk
-                    script: docker build --build-arg BASE_IMAGE .
-                  """,
-                source -> source.path(".gitlab-ci.yml")
-              )
-            );
-        }
-
-        @Test
-        void anchorDefinedOnVariable() {
-            //language=yaml
-            rewriteRun(
-              yaml(
-                """
-                  variables:
-                    BASE_IMAGE: &jdk eclipse-temurin:17-jdk
-                  build:
-                    image: *jdk
-                    script: docker build --build-arg BASE_IMAGE .
                   """,
                 source -> source.path(".gitlab-ci.yml")
               )
