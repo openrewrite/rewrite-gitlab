@@ -30,8 +30,9 @@ public class UpgradeJavaVersion extends Recipe {
     private static final Pattern MAJOR = Pattern.compile("\\d{1,3}");
     private static final String SUFFIX = "(-[a-z][\\w.-]*)?";
 
-    // A tag with a full Java version, such as `17.0.9_9-jdk`, is pinned on purpose and doesn't match
-    private static final Pattern JDK_TAG = Pattern.compile("()(\\d{1,3})" + SUFFIX);
+    // A patch or update version, such as `.0.9_9` or `u392-b08` of Temurin, is dropped as it isn't published for the new major
+    private static final String PATCH = "(?:u\\d+(?:-b\\d+)?|(?:\\.\\d+)+(?:_\\d+)?)?";
+    private static final Pattern JDK_TAG = Pattern.compile("()(\\d{1,3})" + PATCH + SUFFIX);
     private static final Pattern MAVEN_TAG = Pattern.compile("((?:.+-)?(?:eclipse-temurin|amazoncorretto)-)(\\d{1,3})" + SUFFIX);
     private static final Pattern GRADLE_TAG = Pattern.compile("((?:.+-)?jdk)(\\d{1,3})" + SUFFIX);
 

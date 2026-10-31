@@ -113,6 +113,38 @@ class UpgradeJavaVersionTest implements RewriteTest {
     }
 
     @Test
+    void dropPatchVersion() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              build:
+                image: eclipse-temurin:17.0.9_9-jdk
+                script: ./mvnw verify
+              test:
+                image: amazoncorretto:17.0.9
+                script: ./mvnw test
+              legacy:
+                image: eclipse-temurin:8u392-b08-jre-alpine
+                script: java -version
+              """,
+            """
+              build:
+                image: eclipse-temurin:21-jdk
+                script: ./mvnw verify
+              test:
+                image: amazoncorretto:21
+                script: ./mvnw test
+              legacy:
+                image: eclipse-temurin:21-jre-alpine
+                script: java -version
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void upgradeAnchoredImageOnce() {
         //language=yaml
         rewriteRun(
@@ -245,24 +277,6 @@ class UpgradeJavaVersionTest implements RewriteTest {
                   lint:
                     image: gradle:jdk25
                     script: gradle check
-                  """,
-                source -> source.path(".gitlab-ci.yml")
-              )
-            );
-        }
-
-        @Test
-        void fullyPinnedJavaVersion() {
-            //language=yaml
-            rewriteRun(
-              yaml(
-                """
-                  build:
-                    image: eclipse-temurin:17.0.9_9-jdk
-                    script: ./mvnw verify
-                  test:
-                    image: amazoncorretto:17.0.9
-                    script: ./mvnw test
                   """,
                 source -> source.path(".gitlab-ci.yml")
               )
