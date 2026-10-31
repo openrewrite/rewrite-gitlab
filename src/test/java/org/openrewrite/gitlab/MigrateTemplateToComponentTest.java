@@ -15,6 +15,7 @@
  */
 package org.openrewrite.gitlab;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
@@ -102,38 +103,6 @@ class MigrateTemplateToComponentTest implements RewriteTest {
     }
 
     @Test
-    void keepIncludeThatDefinesAnAnchor() {
-        //language=yaml
-        rewriteRun(
-          yaml(
-            """
-              include:
-                - template: Terraform/Base.latest.gitlab-ci.yml
-                  inputs:
-                    opentofu_version: &opentofu_version 1.6.0
-              variables:
-                OPENTOFU_VERSION: *opentofu_version
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void noopWhenTemplateAbsent() {
-        //language=yaml
-        rewriteRun(
-          yaml(
-            """
-              include:
-                - template: Gradle.gitlab-ci.yml
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
     void matchTemplateWithRefSuffix() {
         //language=yaml
         rewriteRun(
@@ -175,5 +144,40 @@ class MigrateTemplateToComponentTest implements RewriteTest {
             source -> source.path(".gitlab-ci.yml")
           )
         );
+    }
+
+    @Nested
+    class NoChange {
+        @Test
+        void includeDefinesAnAnchor() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  include:
+                    - template: Terraform/Base.latest.gitlab-ci.yml
+                      inputs:
+                        opentofu_version: &opentofu_version 1.6.0
+                  variables:
+                    OPENTOFU_VERSION: *opentofu_version
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void templateAbsent() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  include:
+                    - template: Gradle.gitlab-ci.yml
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }
