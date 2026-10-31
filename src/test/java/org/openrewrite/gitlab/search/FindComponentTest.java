@@ -26,7 +26,7 @@ import static org.openrewrite.yaml.Assertions.yaml;
 class FindComponentTest implements RewriteTest {
     @Override
     public void defaults(RecipeSpec spec) {
-        spec.recipe(new FindComponent("\\$CI_SERVER_FQDN/components/opentofu/full-pipeline"));
+        spec.recipe(new FindComponent("$CI_SERVER_FQDN/components/opentofu/full-pipeline", null));
     }
 
     @DocumentExample
@@ -54,6 +54,48 @@ class FindComponentTest implements RewriteTest {
         );
     }
 
+    @Test
+    void escapedComponentPath() {
+        //language=yaml
+        rewriteRun(
+          spec -> spec.recipe(new FindComponent("\\$CI_SERVER_FQDN/components/opentofu/full-pipeline", null)),
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+              """,
+            """
+              include:
+                - ~~>component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void versionPattern() {
+        //language=yaml
+        rewriteRun(
+          spec -> spec.recipe(new FindComponent("$CI_SERVER_FQDN/components/opentofu/full-pipeline", "0.x")),
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@1.0.0
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@main
+              """,
+            """
+              include:
+                - ~~>component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@1.0.0
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@main
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
     @Nested
     class NoChange {
         @Test
@@ -67,6 +109,21 @@ class FindComponentTest implements RewriteTest {
                       inputs:
                         version: 0.10.0
                         opentofu_version: 1.6.1
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void pathIsNotARegex() {
+            //language=yaml
+            rewriteRun(
+              spec -> spec.recipe(new FindComponent("$CI_SERVER_FQDN/components/opentofu/full.pipeline", null)),
+              yaml(
+                """
+                  include:
+                    - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
                   """,
                 source -> source.path(".gitlab-ci.yml")
               )
