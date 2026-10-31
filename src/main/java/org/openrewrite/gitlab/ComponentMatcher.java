@@ -25,7 +25,7 @@ import org.openrewrite.yaml.tree.Yaml;
 
 import java.util.regex.Pattern;
 
-/// Matches `component:` includes by literal path and an optional version pattern.
+/// Matches `component:` includes by literal path and an optional version pattern. A `null` path matches any component.
 ///
 /// A version pattern matches a version that is equal to it, such as `1`, `0.10.0`, `~latest` or `main`, or one
 /// that satisfies it as a semver selector, such as `1.x` or `~1`. A `null` pattern matches any version.
@@ -35,20 +35,20 @@ public class ComponentMatcher {
 
     private final JsonPathMatcher componentInclude = new JsonPathMatcher("$.include[*].component");
 
-    private final String path;
+    private final @Nullable String path;
 
     private final @Nullable String versionPattern;
 
     private final @Nullable VersionComparator versionComparator;
 
-    public ComponentMatcher(String path, @Nullable String versionPattern) {
-        this.path = LEGACY_REGEX_ESCAPE.matcher(path).replaceAll("$1");
+    public ComponentMatcher(@Nullable String path, @Nullable String versionPattern) {
+        this.path = path == null ? null : LEGACY_REGEX_ESCAPE.matcher(path).replaceAll("$1");
         this.versionPattern = versionPattern;
         Validated<VersionComparator> semver = versionPattern == null ? null : Semver.validate(versionPattern, null);
         this.versionComparator = semver != null && semver.isValid() ? semver.getValue() : null;
     }
 
-    public String getPath() {
+    public @Nullable String getPath() {
         return path;
     }
 
@@ -66,7 +66,7 @@ public class ComponentMatcher {
     }
 
     public boolean matches(ComponentReference reference) {
-        return path.equals(reference.getPath()) && matchesVersion(reference.getVersion());
+        return (path == null || path.equals(reference.getPath())) && matchesVersion(reference.getVersion());
     }
 
     private boolean matchesVersion(@Nullable String version) {

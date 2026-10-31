@@ -135,15 +135,13 @@ class ChangeComponentTest implements RewriteTest {
           yaml(
             """
               include:
-                - component: $CI_SERVER_FQDN/group/renovate@1.2.3
-                - component: $CI_SERVER_FQDN/group/renovate@~latest
                 - component: $CI_SERVER_FQDN/group/renovate@e3b0c44298fc1c149afbf4c8996fb92427ae41e4
+                - component: $CI_SERVER_FQDN/group/maven-build@1.2.3
               """,
             """
               include:
                 - component: $CI_SERVER_FQDN/group/renovate@2.0.0
-                - component: $CI_SERVER_FQDN/group/renovate@2.0.0
-                - component: $CI_SERVER_FQDN/group/renovate@2.0.0
+                - component: $CI_SERVER_FQDN/group/maven-build@1.2.3
               """,
             source -> source.path(".gitlab-ci.yml")
           )
@@ -190,15 +188,13 @@ class ChangeComponentTest implements RewriteTest {
             """
               include:
                 - component: $CI_SERVER_FQDN/group/renovate@1
-                - component: $CI_SERVER_FQDN/group/renovate@1.2.3
-                - component: $CI_SERVER_FQDN/group/renovate@2.0.0
+                - component: $CI_SERVER_FQDN/group/renovate@2.1.0
                 - component: $CI_SERVER_FQDN/group/renovate@main
               """,
             """
               include:
                 - component: $CI_SERVER_FQDN/group/renovate@2.0.0
-                - component: $CI_SERVER_FQDN/group/renovate@2.0.0
-                - component: $CI_SERVER_FQDN/group/renovate@2.0.0
+                - component: $CI_SERVER_FQDN/group/renovate@2.1.0
                 - component: $CI_SERVER_FQDN/group/renovate@main
               """,
             source -> source.path(".gitlab-ci.yml")
@@ -363,6 +359,69 @@ class ChangeComponentTest implements RewriteTest {
                   include:
                     - component: $CI_SERVER_FQDN/group/renovate-ci@1.0.0
                     - component: $CI_SERVER_FQDN/group/renovate.ci/extra@1.0.0
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void versionAlreadyIncluded() {
+            rewriteRun(spec -> spec.recipe(
+                new ChangeComponent(
+                  "$CI_SERVER_FQDN/group/renovate",
+                  "1",
+                  null,
+                  "2"
+                )),
+              //language=yaml
+              yaml(
+                """
+                  include:
+                    - component: $CI_SERVER_FQDN/group/renovate@1
+                    - component: $CI_SERVER_FQDN/group/renovate@2
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void newPathAlreadyIncluded() {
+            rewriteRun(spec -> spec.recipe(
+                new ChangeComponent(
+                  "$CI_SERVER_FQDN/group/renovate",
+                  null,
+                  "$CI_SERVER_FQDN/group/dependency-updates",
+                  null
+                )),
+              //language=yaml
+              yaml(
+                """
+                  include:
+                    - component: $CI_SERVER_FQDN/group/renovate@1.0.0
+                    - component: $CI_SERVER_FQDN/group/dependency-updates@2.0.0
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void changesConvergeOnSameVersion() {
+            rewriteRun(spec -> spec.recipe(
+                new ChangeComponent(
+                  "$CI_SERVER_FQDN/group/renovate",
+                  null,
+                  null,
+                  "2.0.0"
+                )),
+              //language=yaml
+              yaml(
+                """
+                  include:
+                    - component: $CI_SERVER_FQDN/group/renovate@1.0.0
+                    - component: $CI_SERVER_FQDN/group/renovate@1.1.0
                   """,
                 source -> source.path(".gitlab-ci.yml")
               )
