@@ -19,12 +19,20 @@ import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
 import org.openrewrite.*;
+import org.openrewrite.internal.ListUtils;
 import org.openrewrite.yaml.YamlIsoVisitor;
 import org.openrewrite.yaml.tree.Yaml;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+import static java.util.Collections.emptyMap;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
 public class ChangeComponent extends Recipe {
+    private static final String INCLUDED_COMPONENTS = "INCLUDED_COMPONENTS";
 
     @Option(displayName = "Old Component",
             description = "The path of the component to match, without the version.",
@@ -62,22 +70,79 @@ public class ChangeComponent extends Recipe {
         ComponentMatcher matcher = new ComponentMatcher(oldComponent, oldComponentVersion);
         return Preconditions.check(new FindSourceFiles(".gitlab-ci.yml"), new YamlIsoVisitor<ExecutionContext>() {
             @Override
+            public Yaml.Document visitDocument(Yaml.Document document, ExecutionContext ctx) {
+                getCursor().putMessage(INCLUDED_COMPONENTS, includedComponents(document, getCursor().getParentOrThrow()));
+                return super.visitDocument(document, ctx);
+            }
+
+            @Override
             public Yaml.Mapping.Entry visitMappingEntry(Yaml.Mapping.Entry entry, ExecutionContext ctx) {
                 Yaml.Mapping.Entry e = super.visitMappingEntry(entry, ctx);
                 ComponentReference reference = matcher.find(getCursor());
                 if (reference == null) {
                     return e;
                 }
-                if (newComponent != null) {
-                    reference = reference.withPath(newComponent);
-                }
-                if (newComponentVersion != null) {
-                    reference = reference.withVersion(newComponentVersion);
-                }
+                ComponentReference changed = change(reference);
                 Yaml.Scalar value = (Yaml.Scalar) e.getValue();
-                String changed = reference.toString();
-                return changed.equals(value.getValue()) ? e : e.withValue(value.withValue(changed));
+                if (changed.toString().equals(value.getValue()) ||
+                    isIncludedElsewhere(e, reference, changed, getCursor().getNearestMessage(INCLUDED_COMPONENTS, emptyMap()))) {
+                    return e;
+                }
+                return e.withValue(value.withValue(changed.toString()));
+            }
+
+            private boolean isIncludedElsewhere(Yaml.Mapping.Entry entry, ComponentReference reference,
+                                                ComponentReference changed, Map<UUID, IncludedComponent> included) {
+                IncludedComponent self = included.get(entry.getId());
+                boolean pathChanged = !changed.getPath().equals(reference.getPath());
+                for (Map.Entry<UUID, IncludedComponent> other : included.entrySet()) {
+                    // Including a component again with different inputs is not a duplicate
+                    if (other.getKey().equals(entry.getId()) ||
+                        self != null && !self.getSettings().equals(other.getValue().getSettings())) {
+                        continue;
+                    }
+                    ComponentReference otherReference = other.getValue().getReference();
+                    if (pathChanged && changed.getPath().equals(otherReference.getPath()) ||
+                        changed.equals(matcher.matches(otherReference) ? change(otherReference) : otherReference)) {
+                        return true;
+                    }
+                }
+                return false;
             }
         });
+    }
+
+    private ComponentReference change(ComponentReference reference) {
+        if (newComponent != null) {
+            reference = reference.withPath(newComponent);
+        }
+        if (newComponentVersion != null) {
+            reference = reference.withVersion(newComponentVersion);
+        }
+        return reference;
+    }
+
+    private static Map<UUID, IncludedComponent> includedComponents(Yaml.Document document, Cursor parent) {
+        ComponentMatcher anyComponent = new ComponentMatcher(null, null);
+        return new YamlIsoVisitor<Map<UUID, IncludedComponent>>() {
+            @Override
+            public Yaml.Mapping.Entry visitMappingEntry(Yaml.Mapping.Entry entry, Map<UUID, IncludedComponent> included) {
+                ComponentReference reference = anyComponent.find(getCursor());
+                if (reference != null) {
+                    Cursor includeCursor = getCursor().getParentTreeCursor();
+                    Yaml.Mapping include = includeCursor.getValue();
+                    String settings = include.withEntries(ListUtils.map(include.getEntries(),
+                            sibling -> sibling == entry ? null : sibling)).printTrimmed(includeCursor.getParentOrThrow());
+                    included.put(entry.getId(), new IncludedComponent(reference, settings));
+                }
+                return super.visitMappingEntry(entry, included);
+            }
+        }.reduce(document, new HashMap<>(), parent);
+    }
+
+    @Value
+    private static class IncludedComponent {
+        ComponentReference reference;
+        String settings;
     }
 }
