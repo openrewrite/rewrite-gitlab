@@ -207,6 +207,30 @@ class ChangeComponentInputTest implements RewriteTest {
     }
 
     @Test
+    void quoteValueThatIsNotPlain() {
+        rewriteRun(
+          spec -> spec.recipe(new ChangeComponentInput(
+            "$CI_SERVER_FQDN/group/maven-build", null, "image", null, "eclipse-temurin:21 # jdk")),
+          //language=yaml
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/maven-build@1
+                  inputs:
+                    image: eclipse-temurin
+              """,
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/maven-build@1
+                  inputs:
+                    image: "eclipse-temurin:21 # jdk"
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void keepAnchorOnChangedValue() {
         rewriteRun(
           spec -> spec.recipe(new ChangeComponentInput(

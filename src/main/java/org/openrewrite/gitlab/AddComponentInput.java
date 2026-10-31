@@ -32,6 +32,7 @@ import java.util.Set;
 @EqualsAndHashCode(callSuper = false)
 @Value
 public class AddComponentInput extends Recipe {
+    private static final String MERGE_KEY = "<<";
 
     @Option(displayName = "Component",
             description = "The path of the component to match, without the version.",
@@ -61,14 +62,23 @@ public class AddComponentInput extends Recipe {
     String description = "Add an input to GitLab component includes that do not set it yet.";
 
     @Override
+    public Validated<Object> validate() {
+        return super.validate().and(Validated.test("value", "Must be a single YAML value.",
+                value, v -> parseInputs() != null));
+    }
+
+    @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
         ComponentMatcher matcher = new ComponentMatcher(component, version);
         return Preconditions.check(new FindSourceFiles(".gitlab-ci.yml"), new YamlVisitor<ExecutionContext>() {
             @Override
             public Yaml visitDocuments(Yaml.Documents documents, ExecutionContext ctx) {
-                Yaml.Mapping incoming = parseInputs();
                 Yaml.Documents d = documents;
                 for (Yaml.Mapping include : includesMissingInput(documents, matcher)) {
+                    Yaml.Mapping incoming = parseInputs();
+                    if (incoming == null) {
+                        return documents;
+                    }
                     d = (Yaml.Documents) new MergeYamlVisitor<>(include, incoming, true, null, null, null)
                             .visitNonNull(d, ctx);
                 }
@@ -82,28 +92,43 @@ public class AddComponentInput extends Recipe {
         return new YamlIsoVisitor<List<Yaml.Mapping>>() {
             @Override
             public Yaml.Mapping visitMapping(Yaml.Mapping mapping, List<Yaml.Mapping> missing) {
-                if (matcher.findInclude(getCursor()) != null) {
-                    if (ComponentInputs.find(mapping, ComponentInputs.INPUTS) == null) {
-                        missing.add(mapping);
-                    } else {
-                        Yaml.Mapping inputs = ComponentInputs.inputs(mapping, aliases);
-                        // An input may already be set through a merge key
-                        if (inputs != null && ComponentInputs.find(inputs, inputName) == null &&
-                            ComponentInputs.find(inputs, "<<") == null) {
-                            missing.add(mapping);
-                        }
-                    }
+                if (matcher.findInclude(getCursor()) != null && isMissingInput(mapping, aliases)) {
+                    missing.add(mapping);
                 }
                 return super.visitMapping(mapping, missing);
             }
         }.reduce(documents, new ArrayList<>());
     }
 
-    private Yaml.Mapping parseInputs() {
-        Yaml.Documents parsed = (Yaml.Documents) YamlParser.builder().build()
+    // Inputs may already be set through a merge key, and an own `inputs:` would replace the merged ones
+    private boolean isMissingInput(Yaml.Mapping include, Set<String> aliases) {
+        if (ComponentInputs.find(include, ComponentInputs.INPUTS) == null) {
+            return ComponentInputs.find(include, MERGE_KEY) == null;
+        }
+        Yaml.Mapping inputs = ComponentInputs.inputs(include, aliases);
+        return inputs != null && inputs.getOpeningBracePrefix() == null &&
+               ComponentInputs.find(inputs, inputName) == null &&
+               ComponentInputs.find(inputs, MERGE_KEY) == null;
+    }
+
+    private Yaml.@Nullable Mapping parseInputs() {
+        return YamlParser.builder().build()
                 .parse(ComponentInputs.INPUTS + ":\n  " + inputName + ": " + value)
+                .filter(Yaml.Documents.class::isInstance)
+                .map(Yaml.Documents.class::cast)
+                .filter(docs -> docs.getDocuments().size() == 1)
+                .map(docs -> docs.getDocuments().get(0).getBlock())
+                .filter(AddComponentInput::isSingleInput)
+                .map(Yaml.Mapping.class::cast)
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Unable to parse input " + inputName));
-        return (Yaml.Mapping) parsed.getDocuments().get(0).getBlock();
+                .orElse(null);
+    }
+
+    private static boolean isSingleInput(Yaml.Block block) {
+        if (!(block instanceof Yaml.Mapping) || ((Yaml.Mapping) block).getEntries().size() != 1) {
+            return false;
+        }
+        Yaml.Block inputs = ((Yaml.Mapping) block).getEntries().get(0).getValue();
+        return inputs instanceof Yaml.Mapping && ((Yaml.Mapping) inputs).getEntries().size() == 1;
     }
 }

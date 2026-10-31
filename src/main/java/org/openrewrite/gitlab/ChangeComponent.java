@@ -19,6 +19,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
 import org.openrewrite.*;
+import org.openrewrite.internal.ListUtils;
 import org.openrewrite.yaml.YamlIsoVisitor;
 import org.openrewrite.yaml.tree.Yaml;
 
@@ -91,13 +92,16 @@ public class ChangeComponent extends Recipe {
             }
 
             private boolean isIncludedElsewhere(Yaml.Mapping.Entry entry, ComponentReference reference,
-                                                ComponentReference changed, Map<UUID, ComponentReference> included) {
+                                                ComponentReference changed, Map<UUID, IncludedComponent> included) {
+                IncludedComponent self = included.get(entry.getId());
                 boolean pathChanged = !changed.getPath().equals(reference.getPath());
-                for (Map.Entry<UUID, ComponentReference> other : included.entrySet()) {
-                    ComponentReference otherReference = other.getValue();
-                    if (other.getKey().equals(entry.getId())) {
+                for (Map.Entry<UUID, IncludedComponent> other : included.entrySet()) {
+                    // Including a component again with different inputs is not a duplicate
+                    if (other.getKey().equals(entry.getId()) ||
+                        self != null && !self.getSettings().equals(other.getValue().getSettings())) {
                         continue;
                     }
+                    ComponentReference otherReference = other.getValue().getReference();
                     if (pathChanged && changed.getPath().equals(otherReference.getPath()) ||
                         changed.equals(matcher.matches(otherReference) ? change(otherReference) : otherReference)) {
                         return true;
@@ -118,17 +122,27 @@ public class ChangeComponent extends Recipe {
         return reference;
     }
 
-    private static Map<UUID, ComponentReference> includedComponents(Yaml.Document document, Cursor parent) {
+    private static Map<UUID, IncludedComponent> includedComponents(Yaml.Document document, Cursor parent) {
         ComponentMatcher anyComponent = new ComponentMatcher(null, null);
-        return new YamlIsoVisitor<Map<UUID, ComponentReference>>() {
+        return new YamlIsoVisitor<Map<UUID, IncludedComponent>>() {
             @Override
-            public Yaml.Mapping.Entry visitMappingEntry(Yaml.Mapping.Entry entry, Map<UUID, ComponentReference> included) {
+            public Yaml.Mapping.Entry visitMappingEntry(Yaml.Mapping.Entry entry, Map<UUID, IncludedComponent> included) {
                 ComponentReference reference = anyComponent.find(getCursor());
                 if (reference != null) {
-                    included.put(entry.getId(), reference);
+                    Cursor includeCursor = getCursor().getParentTreeCursor();
+                    Yaml.Mapping include = includeCursor.getValue();
+                    String settings = include.withEntries(ListUtils.map(include.getEntries(),
+                            sibling -> sibling == entry ? null : sibling)).printTrimmed(includeCursor.getParentOrThrow());
+                    included.put(entry.getId(), new IncludedComponent(reference, settings));
                 }
                 return super.visitMappingEntry(entry, included);
             }
         }.reduce(document, new HashMap<>(), parent);
+    }
+
+    @Value
+    private static class IncludedComponent {
+        ComponentReference reference;
+        String settings;
     }
 }

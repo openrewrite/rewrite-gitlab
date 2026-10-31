@@ -21,6 +21,7 @@ import org.jspecify.annotations.Nullable;
 import org.openrewrite.*;
 import org.openrewrite.internal.ListUtils;
 import org.openrewrite.yaml.YamlIsoVisitor;
+import org.openrewrite.yaml.YamlParser;
 import org.openrewrite.yaml.tree.Yaml;
 
 import java.util.Set;
@@ -117,9 +118,43 @@ public class ChangeComponentInput extends Recipe {
             if (!(input.getValue() instanceof Yaml.Scalar) || isBlockScalar((Yaml.Scalar) input.getValue())) {
                 return null;
             }
-            changed = changed.withValue(((Yaml.Scalar) input.getValue()).withValue(newValue));
+            Yaml.Scalar value = withValue((Yaml.Scalar) input.getValue(), newValue);
+            if (value == null) {
+                return null;
+            }
+            changed = changed.withValue(value);
         }
         return changed == input ? null : changed;
+    }
+
+    private static Yaml.@Nullable Scalar withValue(Yaml.Scalar scalar, String value) {
+        Yaml.Scalar changed = scalar.withValue(value);
+        if (parsesBack(changed)) {
+            return changed;
+        }
+        Yaml.Scalar quoted = changed.withStyle(Yaml.Scalar.Style.DOUBLE_QUOTED);
+        return scalar.getStyle() == Yaml.Scalar.Style.PLAIN && parsesBack(quoted) ? quoted : null;
+    }
+
+    private static boolean parsesBack(Yaml.Scalar scalar) {
+        return YamlParser.builder().build()
+                .parse("key: " + quote(scalar))
+                .filter(Yaml.Documents.class::isInstance)
+                .map(docs -> ((Yaml.Documents) docs).getDocuments())
+                .filter(docs -> docs.size() == 1 && docs.get(0).getBlock() instanceof Yaml.Mapping)
+                .map(docs -> ((Yaml.Mapping) docs.get(0).getBlock()).getEntries())
+                .anyMatch(entries -> entries.size() == 1 && isValue(entries.get(0).getValue(), scalar.getValue()));
+    }
+
+    private static String quote(Yaml.Scalar scalar) {
+        switch (scalar.getStyle()) {
+            case DOUBLE_QUOTED:
+                return '"' + scalar.getValue() + '"';
+            case SINGLE_QUOTED:
+                return "'" + scalar.getValue() + "'";
+            default:
+                return scalar.getValue();
+        }
     }
 
     private static boolean isValue(Yaml.Block value, String expected) {

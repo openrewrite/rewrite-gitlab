@@ -21,6 +21,7 @@ import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.openrewrite.yaml.Assertions.yaml;
 
 class AddComponentInputTest implements RewriteTest {
@@ -269,6 +270,39 @@ class AddComponentInputTest implements RewriteTest {
         }
 
         @Test
+        void inputsFromMergeKeyOnInclude() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  .build: &build
+                    inputs:
+                      stage: build
+                  include:
+                    - <<: *build
+                      component: $CI_SERVER_FQDN/group/maven-build@1
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void flowInputs() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  include:
+                    - component: $CI_SERVER_FQDN/group/maven-build@1
+                      inputs: { stage: build }
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
         void otherComponent() {
             rewriteRun(
               //language=yaml
@@ -296,5 +330,13 @@ class AddComponentInputTest implements RewriteTest {
               )
             );
         }
+    }
+
+    @Test
+    void valueMustBeSingleYamlValue() {
+        assertThat(new AddComponentInput("$CI_SERVER_FQDN/group/maven-build", null, "java_version", "[21").validate().isValid())
+          .isFalse();
+        assertThat(new AddComponentInput("$CI_SERVER_FQDN/group/maven-build", null, "java_version", "21\nstage: build").validate().isValid())
+          .isFalse();
     }
 }

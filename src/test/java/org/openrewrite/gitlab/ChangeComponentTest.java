@@ -302,6 +302,40 @@ class ChangeComponentTest implements RewriteTest {
         );
     }
 
+    @Test
+    void sameComponentWithDifferentInputs() {
+        rewriteRun(spec -> spec.recipe(
+            new ChangeComponent(
+              "$CI_SERVER_FQDN/group/renovate",
+              null,
+              null,
+              "2.0.0"
+            )),
+          //language=yaml
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/renovate@1.0.0
+                  inputs:
+                    job_name: renovate-frontend
+                - component: $CI_SERVER_FQDN/group/renovate@1.0.0
+                  inputs:
+                    job_name: renovate-backend
+              """,
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/renovate@2.0.0
+                  inputs:
+                    job_name: renovate-frontend
+                - component: $CI_SERVER_FQDN/group/renovate@2.0.0
+                  inputs:
+                    job_name: renovate-backend
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
     @Nested
     class NoChange {
         @Test
