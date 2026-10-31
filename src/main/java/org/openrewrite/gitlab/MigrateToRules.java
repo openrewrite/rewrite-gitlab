@@ -176,9 +176,9 @@ public class MigrateToRules extends Recipe {
         }));
     }
 
-    // GitLab combines `only` and `except` inherited through `extends` or `<<` with a job's own, whereas a job's own
-    // `rules` replace inherited ones. So neither side is migrated when both define conditions, nor when a job extends
-    // a template that is not in this file, such as one from an `include`.
+    // GitLab combines `only` and `except` inherited through `extends` or `<<`, whereas `rules` replace inherited
+    // ones. So no job or template in a lineage is migrated when more than one of them defines conditions, nor when the
+    // lineage includes a template that is not in this file, such as one from an `include`.
     private static Set<UUID> inheritanceConflicts(Yaml.Document document) {
         if (!(document.getBlock() instanceof Yaml.Mapping)) {
             return emptySet();
@@ -192,12 +192,13 @@ public class MigrateToRules extends Recipe {
         Map<UUID, Yaml> aliases = YamlAnchors.resolveAliases(document);
         Set<UUID> conflicts = new HashSet<>();
         for (Yaml.Mapping job : jobs.values()) {
-            List<Yaml.Mapping> ancestors = ancestors(job, jobs, aliases, new HashSet<>());
-            if (ancestors == null) {
-                conflicts.add(job.getId());
-            } else if (definesConditions(job) && ancestors.stream().anyMatch(MigrateToRules::definesConditions)) {
-                conflicts.add(job.getId());
-                ancestors.forEach(ancestor -> conflicts.add(ancestor.getId()));
+            List<Yaml.Mapping> lineage = new ArrayList<>();
+            lineage.add(job);
+            Set<UUID> visited = new HashSet<>();
+            visited.add(job.getId());
+            boolean resolved = addAncestors(job, jobs, aliases, visited, lineage);
+            if (!resolved || lineage.stream().filter(MigrateToRules::definesConditions).count() > 1) {
+                lineage.forEach(mapping -> conflicts.add(mapping.getId()));
             }
         }
         return conflicts;
@@ -213,51 +214,41 @@ public class MigrateToRules extends Recipe {
         return false;
     }
 
-    private static @Nullable List<Yaml.Mapping> ancestors(Yaml.Mapping mapping, Map<String, Yaml.Mapping> jobs,
-                                                          Map<UUID, Yaml> aliases, Set<UUID> visited) {
-        List<Yaml.Mapping> ancestors = new ArrayList<>();
+    private static boolean addAncestors(Yaml.Mapping mapping, Map<String, Yaml.Mapping> jobs, Map<UUID, Yaml> aliases,
+                                        Set<UUID> visited, List<Yaml.Mapping> lineage) {
+        boolean resolved = true;
         for (Yaml.Mapping.Entry entry : mapping.getEntries()) {
-            List<Yaml.Mapping> parents;
             String key = entry.getKey().getValue();
+            Function<Yaml, Yaml.@Nullable Mapping> resolve;
             if ("extends".equals(key)) {
-                parents = parents(entry.getValue(), ref -> ref instanceof Yaml.Scalar ?
-                        jobs.get(((Yaml.Scalar) ref).getValue()) : null);
+                resolve = ref -> ref instanceof Yaml.Scalar ? jobs.get(((Yaml.Scalar) ref).getValue()) : null;
             } else if ("<<".equals(key)) {
-                parents = parents(entry.getValue(), ref -> YamlAnchors.mergedMapping(ref, aliases));
+                resolve = ref -> YamlAnchors.mergedMapping(ref, aliases);
             } else {
                 continue;
             }
-            if (parents == null) {
-                return null;
-            }
-            for (Yaml.Mapping parent : parents) {
-                if (visited.add(parent.getId())) {
-                    List<Yaml.Mapping> grandparents = ancestors(parent, jobs, aliases, visited);
-                    if (grandparents == null) {
-                        return null;
-                    }
-                    ancestors.add(parent);
-                    ancestors.addAll(grandparents);
+            for (Yaml ref : references(entry.getValue())) {
+                Yaml.Mapping parent = resolve.apply(ref);
+                if (parent == null) {
+                    resolved = false;
+                } else if (visited.add(parent.getId())) {
+                    lineage.add(parent);
+                    resolved &= addAncestors(parent, jobs, aliases, visited, lineage);
                 }
             }
         }
-        return ancestors;
+        return resolved;
     }
 
-    private static @Nullable List<Yaml.Mapping> parents(Yaml value, Function<Yaml, Yaml.@Nullable Mapping> resolve) {
+    private static List<Yaml> references(Yaml value) {
         if (!(value instanceof Yaml.Sequence)) {
-            Yaml.Mapping parent = resolve.apply(value);
-            return parent == null ? null : singletonList(parent);
+            return singletonList(value);
         }
-        List<Yaml.Mapping> parents = new ArrayList<>();
+        List<Yaml> references = new ArrayList<>();
         for (Yaml.Sequence.Entry entry : ((Yaml.Sequence) value).getEntries()) {
-            Yaml.Mapping parent = resolve.apply(entry.getBlock());
-            if (parent == null) {
-                return null;
-            }
-            parents.add(parent);
+            references.add(entry.getBlock());
         }
-        return parents;
+        return references;
     }
 
     // Replacing the entry would drop the anchor and leave its aliases dangling

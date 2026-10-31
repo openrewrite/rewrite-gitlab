@@ -588,6 +588,69 @@ class MigrateToRulesTest implements RewriteTest {
     }
 
     @Test
+    void skipConditionsCombinedFromSiblingTemplates() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              .main_only:
+                only:
+                  - main
+              .no_tags:
+                except:
+                  - tags
+              deploy_job:
+                extends: [.main_only, .no_tags]
+                script: make deploy
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void skipConditionsCombinedThroughNestedMerge() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              .templates:
+                main_only: &main_only
+                  only:
+                    - main
+                deploy: &deploy
+                  <<: *main_only
+                  except:
+                    - tags
+              deploy_job:
+                <<: *deploy
+                script: make deploy
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void skipLocalTemplateWhenAlsoExtendingTemplateFromInclude() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              include:
+                - remote: https://example.com/templates.yml
+              .main_only:
+                only:
+                  - main
+              deploy_job:
+                extends: [.main_only, .remote_deploy]
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void migrateJobExtendingTemplateWithoutConditions() {
         rewriteRun(
           //language=yaml
