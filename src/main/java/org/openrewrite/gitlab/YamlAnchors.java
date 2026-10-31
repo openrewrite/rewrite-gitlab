@@ -21,13 +21,13 @@ import org.openrewrite.yaml.tree.Yaml;
 
 import java.util.*;
 
-final class YamlAnchors {
+public final class YamlAnchors {
 
     private YamlAnchors() {
     }
 
     // Anchor names may be reused, in which case an alias refers to the most recent anchor of that name before it
-    static Map<UUID, Yaml> resolveAliases(Yaml.Document document) {
+    public static Map<UUID, Yaml> resolveAliases(Yaml.Document document) {
         Map<String, Yaml> anchored = new HashMap<>();
         return new YamlIsoVisitor<Map<UUID, Yaml>>() {
             @Override
@@ -65,7 +65,7 @@ final class YamlAnchors {
         }.reduce(document, new HashMap<>());
     }
 
-    static Yaml.@Nullable Mapping mergedMapping(Yaml mergeSource, Map<UUID, Yaml> aliases) {
+    public static Yaml.@Nullable Mapping mergedMapping(Yaml mergeSource, Map<UUID, Yaml> aliases) {
         Yaml merged = mergeSource instanceof Yaml.Alias ? aliases.get(mergeSource.getId()) : mergeSource;
         return merged instanceof Yaml.Mapping ? (Yaml.Mapping) merged : null;
     }
