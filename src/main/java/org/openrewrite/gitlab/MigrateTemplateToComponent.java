@@ -74,7 +74,9 @@ public class MigrateTemplateToComponent extends Recipe {
                         }
                         Yaml.Mapping original = (Yaml.Mapping) e.getBlock();
                         Yaml.Mapping replacement = parseComponentMapping(componentYaml);
-                        if (replacement == null || original.getEntries().isEmpty()) {
+                        // Replacing the entry would drop its anchors and leave their aliases dangling
+                        if (replacement == null || original.getEntries().isEmpty() ||
+                            !YamlAnchors.anchorsIn(original).isEmpty()) {
                             return e;
                         }
                         String firstEntryPrefix = original.getEntries().get(0).getPrefix();
