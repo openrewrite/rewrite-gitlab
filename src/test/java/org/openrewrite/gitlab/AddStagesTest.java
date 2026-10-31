@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
-import org.openrewrite.yaml.MergeYaml.InsertMode;
 
 import java.util.List;
 
@@ -28,7 +27,7 @@ import static org.openrewrite.yaml.Assertions.yaml;
 class AddStagesTest implements RewriteTest {
     @Override
     public void defaults(RecipeSpec spec) {
-        spec.recipe(new AddStages(List.of("build", "test", "deploy"), false, null, null));
+        spec.recipe(new AddStages(List.of("build", "test", "deploy"), false));
     }
 
     @DocumentExample
@@ -91,7 +90,7 @@ class AddStagesTest implements RewriteTest {
         //language=yaml
         rewriteRun(
           spec ->
-            spec.recipe(new AddStages(List.of("build", "test", "deploy"), true, null, null)),
+            spec.recipe(new AddStages(List.of("build", "test", "deploy"), true)),
           yaml(
             """
               stages:
@@ -103,10 +102,10 @@ class AddStagesTest implements RewriteTest {
     }
 
     @Test
-    void insertAfterExistingStage() {
+    void insertAfterListedStage() {
         //language=yaml
         rewriteRun(
-          spec -> spec.recipe(new AddStages(List.of("security"), null, InsertMode.After, "test")),
+          spec -> spec.recipe(new AddStages(List.of("test", "security"), null)),
           yaml(
             """
               stages:
@@ -119,6 +118,29 @@ class AddStagesTest implements RewriteTest {
                 - build
                 - test
                 - security
+                - deploy
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void insertBeforeListedStage() {
+        //language=yaml
+        rewriteRun(
+          spec -> spec.recipe(new AddStages(List.of("lint", "build", "test"), null)),
+          yaml(
+            """
+              stages:
+                - build
+                - deploy
+              """,
+            """
+              stages:
+                - lint
+                - build
+                - test
                 - deploy
               """,
             source -> source.path(".gitlab-ci.yml")

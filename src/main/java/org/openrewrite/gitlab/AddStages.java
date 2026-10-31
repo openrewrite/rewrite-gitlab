@@ -22,7 +22,6 @@ import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
-import org.openrewrite.yaml.MergeYaml.InsertMode;
 
 import java.util.List;
 
@@ -30,7 +29,8 @@ import java.util.List;
 @Value
 public class AddStages extends Recipe {
     @Option(displayName = "Stages",
-            description = "Stages to add.",
+            description = "Stages to add, in the order they run. A stage missing from an existing `stages` list goes after " +
+                          "the listed stage before it.",
             example = "build,test,deploy")
     List<String> stages;
 
@@ -40,35 +40,12 @@ public class AddStages extends Recipe {
     @Nullable
     Boolean acceptTheirs;
 
-    @Option(displayName = "Insert mode",
-            description = "Where to insert the new stages in an existing `stages` list. Default is `Last`.",
-            valid = {"Before", "After", "Last"},
-            required = false)
-    @Nullable
-    InsertMode insertMode;
-
-    @Option(displayName = "Insert property",
-            description = "The existing stage to insert the new stages before or after. Only used when `insertMode` is `Before` or `After`.",
-            example = "build",
-            required = false)
-    @Nullable
-    String insertProperty;
-
     String displayName = "Add GitLab stages";
 
     String description = "Add or Update the set of stages defined in `.gitlab-ci.yml`.";
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
-        return MergeKeyword.global(
-                "stages",
-                //language=yml
-                "stages:\n" +
-                        (stages == null ? "" : ("  - " + String.join("\n  - ", stages))),
-                acceptTheirs,
-                "stages",
-                insertMode,
-                insertProperty)
-                .getVisitor();
+        return MergeKeyword.list("stages", stages, acceptTheirs).getVisitor();
     }
 }

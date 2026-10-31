@@ -49,8 +49,6 @@ public class AddWorkflowRules extends Recipe {
                 //language=yml
                 "workflow:\n  rules:\n    " + (rules == null ? "" : rules.replace("\n", "\n    ")),
                 acceptTheirs,
-                null,
-                null,
                 null)
                 .getVisitor();
     }

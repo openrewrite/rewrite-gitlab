@@ -41,9 +41,7 @@ public class AddTemplate extends Recipe {
                 "include",
                 "include:\n - template: " + newTemplate,
                 false,
-                "template",
-                null,
-                null)
+                "template")
                 .getVisitor();
     }
 }

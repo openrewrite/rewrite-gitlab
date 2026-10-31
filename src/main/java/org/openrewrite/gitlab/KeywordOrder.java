@@ -24,8 +24,8 @@ import java.util.List;
 
 import static java.util.Arrays.asList;
 
-/// The canonical order of the keywords in `.gitlab-ci.yml`, used both to sort existing keywords and to place a new
-/// keyword among existing ones without moving them.
+/// An order of keys, such as the canonical order of the keywords in `.gitlab-ci.yml` or the stages a recipe adds, used
+/// both to sort existing keys and to place a new key among existing ones without moving them.
 @RequiredArgsConstructor
 class KeywordOrder {
     static final KeywordOrder GLOBAL = new KeywordOrder(asList(

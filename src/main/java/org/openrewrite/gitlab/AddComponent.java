@@ -69,9 +69,7 @@ public class AddComponent extends Recipe {
                 //language=yml
                 includeBlock.toString(),
                 false,
-                "component",
-                null,
-                null)
+                "component")
                 .getVisitor();
     }
 }
