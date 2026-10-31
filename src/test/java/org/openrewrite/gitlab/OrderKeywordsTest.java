@@ -422,6 +422,63 @@ class OrderKeywordsTest implements RewriteTest {
         }
 
         @Test
+        void mergeKeyOverridesPrecedingKey() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  .defaults: &defaults
+                    image: alpine
+                  test:
+                    image: ubuntu
+                    script: echo test
+                    <<: *defaults
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void nestedMergeKeyOverridesPrecedingKey() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  .base: &base
+                    image: alpine
+                  .defaults: &defaults
+                    <<: *base
+                    tags: [docker]
+                  test:
+                    image: ubuntu
+                    <<: [*defaults]
+                    script: echo test
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void keyWouldMoveBeforeOverridingMergeKey() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  .globals: &globals
+                    variables:
+                      A: "1"
+                  <<: *globals
+                  variables:
+                    A: "2"
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
         void aliasWouldPrecedeItsAnchor() {
             //language=yaml
             rewriteRun(

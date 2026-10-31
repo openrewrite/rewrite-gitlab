@@ -77,6 +77,7 @@ public class OrderKeywords extends Recipe {
                         }
                         Cursor cursor = getCursor();
                         String newline = Autodetect.generalFormat(document).newLine();
+                        Map<UUID, Yaml> aliases = YamlAnchors.resolveAliases(document);
                         Yaml.Mapping root = (Yaml.Mapping) document.getBlock();
                         List<Yaml.Mapping.Entry> rootEntries = root.getEntries();
                         String[] prefixes = new String[rootEntries.size() + 1];
@@ -86,8 +87,8 @@ public class OrderKeywords extends Recipe {
                         prefixes[rootEntries.size()] = document.getEnd().getPrefix();
                         root = root.withEntries(ListUtils.map(rootEntries, (i, entry) -> {
                             entry = entry.withPrefix(prefixes[i]);
-                            Reordered job = isJob(entry) ?
-                                    order((Yaml.Mapping) entry.getValue(), JOB_KEYWORDS, prefixes[i + 1], newline, cursor) : null;
+                            Reordered job = isJob(entry) ? order((Yaml.Mapping) entry.getValue(), JOB_KEYWORDS,
+                                    prefixes[i + 1], newline, aliases, cursor) : null;
                             if (job == null) {
                                 return entry;
                             }
@@ -95,7 +96,7 @@ public class OrderKeywords extends Recipe {
                             return entry.withValue(job.getMapping());
                         }));
                         String documentEnd = prefixes[rootEntries.size()];
-                        Reordered ordered = order(root, GLOBAL_KEYWORDS, documentEnd, newline, cursor);
+                        Reordered ordered = order(root, GLOBAL_KEYWORDS, documentEnd, newline, aliases, cursor);
                         if (ordered != null) {
                             root = ordered.getMapping();
                             documentEnd = ordered.getFollowing();
@@ -123,14 +124,16 @@ public class OrderKeywords extends Recipe {
         String lineEnd;
     }
 
-    private static @Nullable Reordered order(Yaml.Mapping mapping, List<String> keywords, String following, String newline, Cursor cursor) {
+    private static @Nullable Reordered order(Yaml.Mapping mapping, List<String> keywords, String following,
+                                             String newline, Map<UUID, Yaml> aliases, Cursor cursor) {
         if (mapping.getOpeningBracePrefix() != null) {
             return null;
         }
         List<Yaml.Mapping.Entry> entries = mapping.getEntries();
         List<Yaml.Mapping.Entry> ordered = new ArrayList<>(entries);
         ordered.sort(comparingInt(entry -> rank(entry, keywords)));
-        if (ordered.equals(entries) || aliasPrecedesAnchor(ordered)) {
+        if (ordered.equals(entries) || aliasPrecedesAnchor(ordered) ||
+            mergeOverridesPrecedingKey(entries, aliases) || mergeOverridesPrecedingKey(ordered, aliases)) {
             return null;
         }
         return relayout(mapping, ordered, following, newline, cursor);
@@ -201,14 +204,14 @@ public class OrderKeywords extends Recipe {
         List<Set<String>> anchorsPerEntry = new ArrayList<>(ordered.size());
         Set<String> siblingAnchors = new HashSet<>();
         for (Yaml.Mapping.Entry entry : ordered) {
-            Set<String> anchors = anchorsIn(entry);
+            Set<String> anchors = YamlAnchors.anchorsIn(entry);
             anchorsPerEntry.add(anchors);
             siblingAnchors.addAll(anchors);
         }
         Set<String> defined = new HashSet<>();
         for (int i = 0; i < ordered.size(); i++) {
             defined.addAll(anchorsPerEntry.get(i));
-            for (String alias : aliasesIn(ordered.get(i))) {
+            for (String alias : YamlAnchors.aliasesIn(ordered.get(i))) {
                 if (siblingAnchors.contains(alias) && !defined.contains(alias)) {
                     return true;
                 }
@@ -217,46 +220,55 @@ public class OrderKeywords extends Recipe {
         return false;
     }
 
-    private static Set<String> anchorsIn(Yaml.Mapping.Entry entry) {
-        return new YamlIsoVisitor<Set<String>>() {
-            @Override
-            public Yaml.Mapping visitMapping(Yaml.Mapping mapping, Set<String> anchors) {
-                add(mapping.getAnchor(), anchors);
-                return super.visitMapping(mapping, anchors);
-            }
-
-            @Override
-            public Yaml.Sequence visitSequence(Yaml.Sequence sequence, Set<String> anchors) {
-                add(sequence.getAnchor(), anchors);
-                return super.visitSequence(sequence, anchors);
-            }
-
-            @Override
-            public Yaml.Scalar visitScalar(Yaml.Scalar scalar, Set<String> anchors) {
-                add(scalar.getAnchor(), anchors);
-                return scalar;
-            }
-
-            @Override
-            public Yaml.Alias visitAlias(Yaml.Alias alias, Set<String> anchors) {
-                return alias;
-            }
-
-            private void add(Yaml.@Nullable Anchor anchor, Set<String> anchors) {
-                if (anchor != null) {
-                    anchors.add(anchor.getKey());
+    // GitLab's YAML parser lets a `<<` merge key override the keys before it, so moving a key across the merge key
+    // would change which value wins
+    private static boolean mergeOverridesPrecedingKey(List<Yaml.Mapping.Entry> entries, Map<UUID, Yaml> aliases) {
+        Set<String> preceding = new HashSet<>();
+        for (Yaml.Mapping.Entry entry : entries) {
+            String key = entry.getKey().getValue();
+            if ("<<".equals(key) && !preceding.isEmpty()) {
+                Set<String> merged = mergedKeys(entry.getValue(), aliases, new HashSet<>());
+                if (merged == null || !Collections.disjoint(preceding, merged)) {
+                    return true;
                 }
             }
-        }.reduce(entry, new HashSet<>());
+            preceding.add(key);
+        }
+        return false;
     }
 
-    private static Set<String> aliasesIn(Yaml.Mapping.Entry entry) {
-        return new YamlIsoVisitor<Set<String>>() {
-            @Override
-            public Yaml.Alias visitAlias(Yaml.Alias alias, Set<String> aliases) {
-                aliases.add(alias.getAnchor().getKey());
-                return alias;
+    private static @Nullable Set<String> mergedKeys(Yaml value, Map<UUID, Yaml> aliases, Set<UUID> visited) {
+        if (value instanceof Yaml.Sequence) {
+            Set<String> keys = new HashSet<>();
+            for (Yaml.Sequence.Entry entry : ((Yaml.Sequence) value).getEntries()) {
+                Set<String> merged = mergedKeys(entry.getBlock(), aliases, visited);
+                if (merged == null) {
+                    return null;
+                }
+                keys.addAll(merged);
             }
-        }.reduce(entry, new HashSet<>());
+            return keys;
+        }
+        Yaml.Mapping merged = YamlAnchors.mergedMapping(value, aliases);
+        if (merged == null) {
+            return null;
+        }
+        Set<String> keys = new HashSet<>();
+        if (!visited.add(merged.getId())) {
+            return keys;
+        }
+        for (Yaml.Mapping.Entry entry : merged.getEntries()) {
+            String key = entry.getKey().getValue();
+            if ("<<".equals(key)) {
+                Set<String> nested = mergedKeys(entry.getValue(), aliases, visited);
+                if (nested == null) {
+                    return null;
+                }
+                keys.addAll(nested);
+            } else {
+                keys.add(key);
+            }
+        }
+        return keys;
     }
 }
