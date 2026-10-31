@@ -45,7 +45,6 @@ public class AddWorkflowRules extends Recipe {
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
         return MergeKeyword.global(
-                "workflow",
                 //language=yml
                 "workflow:\n  rules:\n    " + (rules == null ? "" : rules.replace("\n", "\n    ")),
                 acceptTheirs,

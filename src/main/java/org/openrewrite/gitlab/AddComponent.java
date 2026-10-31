@@ -65,7 +65,6 @@ public class AddComponent extends Recipe {
         }
 
         return MergeKeyword.global(
-                "include",
                 //language=yml
                 includeBlock.toString(),
                 false,

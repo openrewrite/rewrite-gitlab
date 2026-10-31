@@ -197,4 +197,48 @@ class AddStagesTest implements RewriteTest {
           )
         );
     }
+
+    @Test
+    void appendStageWithoutListedNeighbor() {
+        //language=yaml
+        rewriteRun(
+          spec -> spec.recipe(new AddStages(List.of("security"), null)),
+          yaml(
+            """
+              stages:
+                - build
+                - test
+              """,
+            """
+              stages:
+                - build
+                - test
+                - security
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void insertBeforeListedStageAfterUnlistedOnes() {
+        //language=yaml
+        rewriteRun(
+          spec -> spec.recipe(new AddStages(List.of("lint", "build"), null)),
+          yaml(
+            """
+              stages:
+                - prepare
+                - build
+              """,
+            """
+              stages:
+                - prepare
+                - lint
+                - build
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
 }

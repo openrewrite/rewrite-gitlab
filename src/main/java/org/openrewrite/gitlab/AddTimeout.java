@@ -52,12 +52,6 @@ public class AddTimeout extends Recipe {
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
         String target = jobName != null ? jobName : "default";
-        return MergeKeyword.job(
-                target,
-                "timeout",
-                //language=yml
-                target + ":\n  timeout: " + timeout,
-                acceptTheirs)
-                .getVisitor();
+        return MergeKeyword.job(target, "timeout: " + timeout, acceptTheirs).getVisitor();
     }
 }

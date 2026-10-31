@@ -29,14 +29,20 @@ import org.openrewrite.yaml.MergeYaml.InsertMode;
 import org.openrewrite.yaml.tree.Yaml;
 
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 
 /// Merges a snippet into `.gitlab-ci.yml`, placing a top-level `key` or a `jobKeyword` within it that is not yet
 /// present where [KeywordOrder] puts it, rather than appending it after the jobs.
 @RequiredArgsConstructor
 class MergeKeyword {
+    private static final Pattern LINE_START = Pattern.compile("(?m)^(?=.)");
+
     private final String key;
     private final @Nullable String jobKeyword;
 
@@ -47,19 +53,28 @@ class MergeKeyword {
     private final @Nullable String objectIdentifyingProperty;
     private final @Nullable List<String> items;
 
-    static MergeKeyword global(String key, @Language("yml") String yaml, @Nullable Boolean acceptTheirs,
+    static MergeKeyword global(@Language("yml") String yaml, @Nullable Boolean acceptTheirs,
                                @Nullable String objectIdentifyingProperty) {
-        return new MergeKeyword(key, null, yaml, acceptTheirs, objectIdentifyingProperty, null);
+        return new MergeKeyword(firstKey(yaml), null, yaml, acceptTheirs, objectIdentifyingProperty, null);
     }
 
     /// Merges a keyword into the `default` section or a job.
-    static MergeKeyword job(String job, String keyword, @Language("yml") String yaml, @Nullable Boolean acceptTheirs) {
-        return new MergeKeyword(job, keyword, yaml, acceptTheirs, null, null);
+    static MergeKeyword job(String job, @Language("yml") String keywordYaml, @Nullable Boolean acceptTheirs) {
+        String yaml = job + ":\n" + LINE_START.matcher(keywordYaml).replaceAll("  ");
+        return new MergeKeyword(job, firstKey(keywordYaml), yaml, acceptTheirs, null, null);
     }
 
     /// Merges a list of scalars, placing each item missing from an existing list by the order of `items`.
     static MergeKeyword list(String key, List<String> items, @Nullable Boolean acceptTheirs) {
-        return new MergeKeyword(key, null, key + ":\n  - " + String.join("\n  - ", items), acceptTheirs, null, items);
+        return new MergeKeyword(key, null, listYaml(key, items), acceptTheirs, null, items);
+    }
+
+    private static String firstKey(String yaml) {
+        return yaml.substring(0, yaml.indexOf(':'));
+    }
+
+    private static String listYaml(String key, List<String> items) {
+        return key + ":\n  - " + String.join("\n  - ", items);
     }
 
     TreeVisitor<?, ExecutionContext> getVisitor() {
@@ -83,55 +98,76 @@ class MergeKeyword {
     }
 
     private Yaml.Documents merge(Yaml.Documents documents, ExecutionContext ctx) {
-        Yaml.Block root = documents.getDocuments().get(0).getBlock();
-        Yaml.Mapping.Entry existing = find(entries(root), key);
+        List<Yaml.Mapping.Entry> rootEntries = entries(documents.getDocuments().get(0).getBlock());
+        Yaml.Mapping.Entry existing = find(rootEntries, key);
         if (items != null && existing != null && existing.getValue() instanceof Yaml.Sequence) {
             return Boolean.TRUE.equals(acceptTheirs) ? documents :
                     mergeItems(documents, (Yaml.Sequence) existing.getValue(), items, ctx);
         }
-        return mergeYaml(documents, yaml, placement(root), ctx);
+        return mergeYaml(documents, yaml, placement(rootEntries, existing), ctx);
     }
 
-    private Yaml.Documents mergeItems(Yaml.Documents documents, Yaml.Sequence sequence, List<String> items,
+    private Yaml.Documents mergeItems(Yaml.Documents documents, Yaml.Sequence sequence, List<String> listed,
                                       ExecutionContext ctx) {
-        List<String> present = sequence.getEntries().stream()
-                .map(e -> e.getBlock() instanceof Yaml.Scalar ? ((Yaml.Scalar) e.getBlock()).getValue() : "")
-                .collect(toList());
-        KeywordOrder order = new KeywordOrder(items);
-        for (String item : items) {
+        Set<String> present = sequence.getEntries().stream()
+                .filter(e -> e.getBlock() instanceof Yaml.Scalar)
+                .map(e -> ((Yaml.Scalar) e.getBlock()).getValue())
+                .collect(toSet());
+        String previous = null;
+        for (String item : listed) {
             if (!present.contains(item)) {
-                KeywordOrder.Placement placement = order.placement(present, item);
-                documents = mergeYaml(documents, key + ":\n  - " + item, placement, ctx);
-                present.add(placement.getMode() == InsertMode.Last ? present.size() :
-                        present.indexOf(placement.getProperty()) + (placement.getMode() == InsertMode.After ? 1 : 0), item);
+                documents = mergeYaml(documents, listYaml(key, singletonList(item)),
+                        itemPlacement(previous, listed, present), ctx);
+                present.add(item);
             }
+            previous = item;
         }
         return documents;
     }
 
+    private static KeywordOrder.Placement itemPlacement(@Nullable String previous, List<String> listed, Set<String> present) {
+        if (previous != null) {
+            return new KeywordOrder.Placement(InsertMode.After, previous);
+        }
+        return listed.stream()
+                .filter(present::contains)
+                .findFirst()
+                .map(next -> new KeywordOrder.Placement(InsertMode.Before, next))
+                .orElse(KeywordOrder.Placement.LAST);
+    }
+
     private Yaml.Documents mergeYaml(Yaml.Documents documents, @Language("yml") String snippet,
-                                     KeywordOrder.@Nullable Placement placement, ExecutionContext ctx) {
+                                     KeywordOrder.Placement placement, ExecutionContext ctx) {
         return (Yaml.Documents) new MergeYaml("$", snippet, acceptTheirs, objectIdentifyingProperty, null,
-                placement == null ? null : placement.getMode(), placement == null ? null : placement.getProperty(), null)
+                placement.getMode(), placement.getProperty(), null)
                 .getVisitor()
                 .visitNonNull(documents, ctx);
     }
 
     // MergeYaml applies the insert mode and property to every mapping it adds entries to, so a placement is only
     // computed for the one mapping that lacks the key being added
-    private KeywordOrder.@Nullable Placement placement(Yaml.Block root) {
-        List<Yaml.Mapping.Entry> rootEntries = entries(root);
-        Yaml.Mapping.Entry existing = find(rootEntries, key);
+    private KeywordOrder.Placement placement(List<Yaml.Mapping.Entry> rootEntries, Yaml.Mapping.@Nullable Entry existing) {
         if (existing == null) {
             return KeywordOrder.GLOBAL.placement(keys(rootEntries), key);
         }
         if (jobKeyword != null && existing.getValue() instanceof Yaml.Mapping) {
             List<Yaml.Mapping.Entry> jobEntries = entries(existing.getValue());
             if (find(jobEntries, jobKeyword) == null) {
-                return KeywordOrder.JOB.placement(keys(jobEntries), jobKeyword);
+                KeywordOrder.Placement placement = KeywordOrder.JOB.placement(keys(jobEntries), jobKeyword);
+                return insertsAfterBlockScalar(jobEntries, placement) ? KeywordOrder.Placement.LAST : placement;
             }
         }
-        return null;
+        return KeywordOrder.Placement.LAST;
+    }
+
+    // An entry that follows a block scalar has no line break of its own, and MergeYaml moves it out of the job when
+    // inserting between the two, so such a keyword is appended instead
+    private static boolean insertsAfterBlockScalar(List<Yaml.Mapping.Entry> entries, KeywordOrder.Placement placement) {
+        if (placement.getMode() != InsertMode.After) {
+            return false;
+        }
+        int next = keys(entries).indexOf(placement.getProperty()) + 1;
+        return next < entries.size() && !entries.get(next).getPrefix().contains("\n");
     }
 
     private static boolean isHeader(Yaml.Document document) {

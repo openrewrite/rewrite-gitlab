@@ -47,12 +47,6 @@ public class AddInterruptible extends Recipe {
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
         String target = jobName != null ? jobName : "default";
-        return MergeKeyword.job(
-                target,
-                "interruptible",
-                //language=yml
-                target + ":\n  interruptible: true",
-                acceptTheirs)
-                .getVisitor();
+        return MergeKeyword.job(target, "interruptible: true", acceptTheirs).getVisitor();
     }
 }

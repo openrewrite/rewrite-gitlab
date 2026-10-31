@@ -191,4 +191,31 @@ class AddTimeoutTest implements RewriteTest {
           )
         );
     }
+
+    @Test
+    void appendAfterBlockScalar() {
+        //language=yaml
+        rewriteRun(
+          spec ->
+            spec.recipe(new AddTimeout("30 minutes", "build_job", null)),
+          yaml(
+            """
+              build_job:
+                rules:
+                  - if: |
+                      $CI_COMMIT_BRANCH == "main"
+                script: make build
+              """,
+            """
+              build_job:
+                rules:
+                  - if: |
+                      $CI_COMMIT_BRANCH == "main"
+                script: make build
+                timeout: 30 minutes
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
 }

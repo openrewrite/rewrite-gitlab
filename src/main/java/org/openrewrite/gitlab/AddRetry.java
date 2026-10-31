@@ -62,19 +62,13 @@ public class AddRetry extends Recipe {
     public TreeVisitor<?, ExecutionContext> getVisitor() {
         String target = jobName != null ? jobName : "default";
         StringBuilder snippet = new StringBuilder();
-        snippet.append(target).append(":\n  retry:\n    max: ").append(max);
+        snippet.append("retry:\n  max: ").append(max);
         if (when != null && !when.isEmpty()) {
-            snippet.append("\n    when:\n");
+            snippet.append("\n  when:\n");
             for (String w : when) {
-                snippet.append("      - ").append(w).append("\n");
+                snippet.append("    - ").append(w).append("\n");
             }
         }
-        return MergeKeyword.job(
-                target,
-                "retry",
-                //language=yml
-                snippet.toString(),
-                acceptTheirs)
-                .getVisitor();
+        return MergeKeyword.job(target, snippet.toString(), acceptTheirs).getVisitor();
     }
 }

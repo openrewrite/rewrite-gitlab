@@ -15,18 +15,21 @@
  */
 package org.openrewrite.gitlab;
 
+import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
+import org.openrewrite.internal.ListUtils;
 import org.openrewrite.yaml.MergeYaml.InsertMode;
 
 import java.util.List;
 
 import static java.util.Arrays.asList;
+import static java.util.Comparator.comparingInt;
 
-/// An order of keys, such as the canonical order of the keywords in `.gitlab-ci.yml` or the stages a recipe adds, used
-/// both to sort existing keys and to place a new key among existing ones without moving them.
-@RequiredArgsConstructor
+/// The canonical order of the keywords in `.gitlab-ci.yml`, used both to sort existing keywords and to place a new
+/// keyword among existing ones without moving them.
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 class KeywordOrder {
     static final KeywordOrder GLOBAL = new KeywordOrder(asList(
             "include", "stages", "variables", "workflow", "default"));
@@ -48,24 +51,21 @@ class KeywordOrder {
         return index < 0 ? keywords.size() : index;
     }
 
-    /// Places a new `key` after the last of the `existing` keys that ranks before it, or before the first existing
-    /// key when none does. An unrecognized key, such as a new job, goes last.
+    /// Places a new `key` where [ListUtils#insertInOrder] puts it among the `existing` keys. An unrecognized key, such
+    /// as a new job, goes last.
     Placement placement(List<String> existing, String key) {
         if (existing.isEmpty() || !keywords.contains(key)) {
-            return new Placement(InsertMode.Last, null);
+            return Placement.LAST;
         }
-        int rank = rank(key);
-        String after = null;
-        for (String existingKey : existing) {
-            if (rank(existingKey) < rank) {
-                after = existingKey;
-            }
-        }
-        return after == null ? new Placement(InsertMode.Before, existing.get(0)) : new Placement(InsertMode.After, after);
+        List<String> placed = ListUtils.insertInOrder(existing, key, comparingInt(this::rank));
+        int index = placed.indexOf(key);
+        return index == 0 ? new Placement(InsertMode.Before, placed.get(1)) : new Placement(InsertMode.After, placed.get(index - 1));
     }
 
     @Value
     static class Placement {
+        static final Placement LAST = new Placement(InsertMode.Last, null);
+
         InsertMode mode;
 
         @Nullable

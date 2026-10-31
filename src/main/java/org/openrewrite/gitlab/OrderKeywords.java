@@ -111,14 +111,14 @@ public class OrderKeywords extends Recipe {
         String lineEnd;
     }
 
-    private static @Nullable Reordered order(Yaml.Mapping mapping, KeywordOrder keywords, String following,
+    private static @Nullable Reordered order(Yaml.Mapping mapping, KeywordOrder order, String following,
                                              String newline, Map<UUID, Yaml> aliases, Cursor cursor) {
         if (mapping.getOpeningBracePrefix() != null) {
             return null;
         }
         List<Yaml.Mapping.Entry> entries = mapping.getEntries();
         List<Yaml.Mapping.Entry> ordered = new ArrayList<>(entries);
-        ordered.sort(comparingInt(entry -> keywords.rank(entry.getKey().getValue())));
+        ordered.sort(comparingInt(entry -> order.rank(entry.getKey().getValue())));
         if (ordered.equals(entries) || aliasPrecedesAnchor(ordered) ||
             mergeOverridesPrecedingKey(entries, aliases) || mergeOverridesPrecedingKey(ordered, aliases)) {
             return null;

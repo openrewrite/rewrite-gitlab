@@ -38,7 +38,6 @@ public class AddTemplate extends Recipe {
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
         return MergeKeyword.global(
-                "include",
                 "include:\n - template: " + newTemplate,
                 false,
                 "template")

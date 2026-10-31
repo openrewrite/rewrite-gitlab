@@ -49,12 +49,6 @@ public class AddDefaultKeyword extends Recipe {
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
-        return MergeKeyword.job(
-                "default",
-                keyword,
-                //language=yml
-                "default:\n  " + keyword + ": " + value,
-                acceptTheirs)
-                .getVisitor();
+        return MergeKeyword.job("default", keyword + ": " + value, acceptTheirs).getVisitor();
     }
 }
