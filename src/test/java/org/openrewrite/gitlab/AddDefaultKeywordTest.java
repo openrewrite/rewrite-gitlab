@@ -15,6 +15,7 @@
  */
 package org.openrewrite.gitlab;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
@@ -64,33 +65,36 @@ class AddDefaultKeywordTest implements RewriteTest {
         );
     }
 
-    @Test
-    void acceptTheirsPreservesExisting() {
-        //language=yaml
-        rewriteRun(
-          spec ->
-            spec.recipe(new AddDefaultKeyword("image", "ruby:3.0", true)),
-          yaml(
-            """
-              default:
-                image: node:18
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
+    @Nested
+    class NoChange {
+        @Test
+        void acceptTheirsPreservesExisting() {
+            //language=yaml
+            rewriteRun(
+              spec ->
+                spec.recipe(new AddDefaultKeyword("image", "ruby:3.0", true)),
+              yaml(
+                """
+                  default:
+                    image: node:18
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
 
-    @Test
-    void noopWhenAlreadyPresent() {
-        //language=yaml
-        rewriteRun(
-          yaml(
-            """
-              default:
-                image: ruby:3.0
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
+        @Test
+        void noopWhenAlreadyPresent() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  default:
+                    image: ruby:3.0
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }

@@ -15,6 +15,7 @@
  */
 package org.openrewrite.gitlab.search;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
@@ -51,19 +52,22 @@ class FindDeprecatedExceptTest implements RewriteTest {
         );
     }
 
-    @Test
-    void noMatchWhenNotPresent() {
-        //language=yaml
-        rewriteRun(
-          yaml(
-            """
-              deploy_job:
-                script: make deploy
-                rules:
-                  - if: $CI_COMMIT_TAG
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
+    @Nested
+    class NoChange {
+        @Test
+        void noMatchWhenNotPresent() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  deploy_job:
+                    script: make deploy
+                    rules:
+                      - if: $CI_COMMIT_TAG
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }

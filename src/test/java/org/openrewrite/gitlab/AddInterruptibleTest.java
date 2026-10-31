@@ -15,6 +15,7 @@
  */
 package org.openrewrite.gitlab;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
@@ -85,17 +86,20 @@ class AddInterruptibleTest implements RewriteTest {
         );
     }
 
-    @Test
-    void noopWhenAlreadyPresent() {
-        //language=yaml
-        rewriteRun(
-          yaml(
-            """
-              default:
-                interruptible: true
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
+    @Nested
+    class NoChange {
+        @Test
+        void noopWhenAlreadyPresent() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  default:
+                    interruptible: true
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }

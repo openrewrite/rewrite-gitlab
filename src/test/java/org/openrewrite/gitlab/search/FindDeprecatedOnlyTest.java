@@ -15,6 +15,7 @@
  */
 package org.openrewrite.gitlab.search;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
@@ -51,19 +52,22 @@ class FindDeprecatedOnlyTest implements RewriteTest {
         );
     }
 
-    @Test
-    void noMatchWhenNotPresent() {
-        //language=yaml
-        rewriteRun(
-          yaml(
-            """
-              build_job:
-                script: make build
-                rules:
-                  - if: $CI_COMMIT_BRANCH == "main"
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
+    @Nested
+    class NoChange {
+        @Test
+        void noMatchWhenNotPresent() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  build_job:
+                    script: make build
+                    rules:
+                      - if: $CI_COMMIT_BRANCH == "main"
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }

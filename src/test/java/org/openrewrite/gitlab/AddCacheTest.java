@@ -15,6 +15,7 @@
  */
 package org.openrewrite.gitlab;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
@@ -98,24 +99,6 @@ class AddCacheTest implements RewriteTest {
     }
 
     @Test
-    void noopWhenAlreadyPresent() {
-        //language=yaml
-        rewriteRun(
-          yaml(
-            """
-              default:
-                cache:
-                  key: $CI_COMMIT_REF_SLUG
-                  paths:
-                    - .cache/
-                    - vendor/
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
     void mergeIntoExistingDefault() {
         //language=yaml
         rewriteRun(
@@ -136,5 +119,26 @@ class AddCacheTest implements RewriteTest {
             source -> source.path(".gitlab-ci.yml")
           )
         );
+    }
+
+    @Nested
+    class NoChange {
+        @Test
+        void noopWhenAlreadyPresent() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  default:
+                    cache:
+                      key: $CI_COMMIT_REF_SLUG
+                      paths:
+                        - .cache/
+                        - vendor/
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }

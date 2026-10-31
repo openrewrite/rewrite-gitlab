@@ -15,6 +15,7 @@
  */
 package org.openrewrite.gitlab;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
@@ -117,21 +118,24 @@ class AddRetryTest implements RewriteTest {
         );
     }
 
-    @Test
-    void noopWhenAlreadyPresent() {
-        //language=yaml
-        rewriteRun(
-          yaml(
-            """
-              default:
-                retry:
-                  max: 2
-                  when:
-                    - runner_system_failure
-                    - stuck_or_timeout_failure
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
+    @Nested
+    class NoChange {
+        @Test
+        void noopWhenAlreadyPresent() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  default:
+                    retry:
+                      max: 2
+                      when:
+                        - runner_system_failure
+                        - stuck_or_timeout_failure
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }
