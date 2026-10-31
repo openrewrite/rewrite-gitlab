@@ -223,10 +223,7 @@ public class MigrateToRules extends Recipe {
                 parents = parents(entry.getValue(), ref -> ref instanceof Yaml.Scalar ?
                         jobs.get(((Yaml.Scalar) ref).getValue()) : null);
             } else if ("<<".equals(key)) {
-                parents = parents(entry.getValue(), ref -> {
-                    Yaml merged = ref instanceof Yaml.Alias ? aliases.get(ref.getId()) : ref;
-                    return merged instanceof Yaml.Mapping ? (Yaml.Mapping) merged : null;
-                });
+                parents = parents(entry.getValue(), ref -> YamlAnchors.mergedMapping(ref, aliases));
             } else {
                 continue;
             }

@@ -248,15 +248,15 @@ public class OrderKeywords extends Recipe {
             }
             return keys;
         }
-        Yaml merged = value instanceof Yaml.Alias ? aliases.get(value.getId()) : value;
-        if (!(merged instanceof Yaml.Mapping)) {
+        Yaml.Mapping merged = YamlAnchors.mergedMapping(value, aliases);
+        if (merged == null) {
             return null;
         }
         Set<String> keys = new HashSet<>();
         if (!visited.add(merged.getId())) {
             return keys;
         }
-        for (Yaml.Mapping.Entry entry : ((Yaml.Mapping) merged).getEntries()) {
+        for (Yaml.Mapping.Entry entry : merged.getEntries()) {
             String key = entry.getKey().getValue();
             if ("<<".equals(key)) {
                 Set<String> nested = mergedKeys(entry.getValue(), aliases, visited);

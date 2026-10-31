@@ -65,6 +65,11 @@ final class YamlAnchors {
         }.reduce(document, new HashMap<>());
     }
 
+    static Yaml.@Nullable Mapping mergedMapping(Yaml mergeSource, Map<UUID, Yaml> aliases) {
+        Yaml merged = mergeSource instanceof Yaml.Alias ? aliases.get(mergeSource.getId()) : mergeSource;
+        return merged instanceof Yaml.Mapping ? (Yaml.Mapping) merged : null;
+    }
+
     static Set<String> anchorsIn(Yaml tree) {
         return new YamlIsoVisitor<Set<String>>() {
             @Override
