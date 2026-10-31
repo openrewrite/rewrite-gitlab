@@ -27,7 +27,8 @@ public class ChangeImage extends Recipe {
 
     @Option(displayName = "Old image name",
             description = "The name of the image to match, without tag or digest. Supports glob patterns, " +
-                          "such as `*/eclipse-temurin` to match the image in any registry.",
+                          "where `*` also matches `/`, so `*/eclipse-temurin` matches the image under any registry " +
+                          "prefix, but not a bare `eclipse-temurin`.",
             example = "eclipse-temurin")
     String oldImageName;
 
