@@ -65,6 +65,20 @@ public class ComponentMatcher {
         return matches(reference) ? reference : null;
     }
 
+    /// Returns the include's component reference when the cursor points at an `include` entry mapping with a matching
+    /// `component:` entry.
+    public @Nullable ComponentReference findInclude(Cursor cursor) {
+        if (!(cursor.getValue() instanceof Yaml.Mapping)) {
+            return null;
+        }
+        for (Yaml.Mapping.Entry entry : ((Yaml.Mapping) cursor.getValue()).getEntries()) {
+            if ("component".equals(entry.getKey().getValue())) {
+                return find(new Cursor(cursor, entry));
+            }
+        }
+        return null;
+    }
+
     public boolean matches(ComponentReference reference) {
         return (path == null || path.equals(reference.getPath())) && matchesVersion(reference.getVersion());
     }
