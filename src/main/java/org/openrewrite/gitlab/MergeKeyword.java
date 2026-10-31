@@ -35,7 +35,7 @@ import static java.util.stream.Collectors.toList;
 
 /// Merges a snippet into `.gitlab-ci.yml`, placing a top-level `key` or a `jobKeyword` within it that is not yet
 /// present where [KeywordOrder] puts it, rather than appending it after the jobs. The insert mode and property only
-/// position new entries within a top-level list that is already present, such as `include` or `stages`.
+/// position new entries within a top-level list that is already present, such as `stages`.
 @RequiredArgsConstructor
 class MergeKeyword {
     private final String key;

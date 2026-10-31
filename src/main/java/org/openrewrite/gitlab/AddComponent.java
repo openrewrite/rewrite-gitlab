@@ -22,7 +22,6 @@ import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
-import org.openrewrite.yaml.MergeYaml.InsertMode;
 
 import java.util.List;
 
@@ -45,21 +44,6 @@ public class AddComponent extends Recipe {
             required = false)
     @Nullable
     List<String> inputs;
-
-    @Option(displayName = "Insert mode",
-            description = "Where to insert the component in an existing `include` list. Default is `Last`.",
-            valid = {"Before", "After", "Last"},
-            required = false)
-    @Nullable
-    InsertMode insertMode;
-
-    @Option(displayName = "Insert property",
-            description = "The existing `include` entry to insert the component before or after, written as its first key and value. " +
-                          "Only used when `insertMode` is `Before` or `After`.",
-            example = "template: Gradle.gitlab-ci.yml",
-            required = false)
-    @Nullable
-    String insertProperty;
 
     String displayName = "Add GitLab component";
 
@@ -86,8 +70,8 @@ public class AddComponent extends Recipe {
                 includeBlock.toString(),
                 false,
                 "component",
-                insertMode,
-                insertProperty)
+                null,
+                null)
                 .getVisitor();
     }
 }
