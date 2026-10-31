@@ -60,7 +60,6 @@ public class AddRetry extends Recipe {
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor() {
-        String target = jobName != null ? jobName : "default";
         StringBuilder snippet = new StringBuilder();
         snippet.append("retry:\n  max: ").append(max);
         if (when != null && !when.isEmpty()) {
@@ -69,6 +68,6 @@ public class AddRetry extends Recipe {
                 snippet.append("    - ").append(w).append("\n");
             }
         }
-        return MergeKeyword.job(target, snippet.toString(), acceptTheirs).getVisitor();
+        return MergeKeyword.job(jobName, snippet.toString(), acceptTheirs).getVisitor();
     }
 }

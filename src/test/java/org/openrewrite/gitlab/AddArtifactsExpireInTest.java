@@ -110,5 +110,21 @@ class AddArtifactsExpireInTest implements RewriteTest {
               )
             );
         }
+
+        @Test
+        void noopWhenJobMissing() {
+            //language=yaml
+            rewriteRun(
+              spec ->
+                spec.recipe(new AddArtifactsExpireIn("30 days", "buidl", null)),
+              yaml(
+                """
+                  build:
+                    script: make build
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }

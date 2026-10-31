@@ -54,26 +54,38 @@ class MergeKeyword {
     private final @Nullable String objectIdentifyingProperty;
     private final @Nullable List<String> items;
     private final boolean beforeTrailingRemotes;
+    private final boolean existingMappingOnly;
 
     static MergeKeyword global(@Language("yml") String yaml, @Nullable Boolean acceptTheirs,
                                @Nullable String objectIdentifyingProperty) {
-        return new MergeKeyword(firstKey(yaml), null, yaml, acceptTheirs, objectIdentifyingProperty, null, false);
+        return new MergeKeyword(firstKey(yaml), null, yaml, acceptTheirs, objectIdentifyingProperty, null, false, false);
     }
 
     /// Merges an entry into the `include` list, ahead of any `remote` includes that end it.
     static MergeKeyword include(@Language("yml") String yaml, String objectIdentifyingProperty) {
-        return new MergeKeyword("include", null, yaml, false, objectIdentifyingProperty, null, true);
+        return new MergeKeyword("include", null, yaml, false, objectIdentifyingProperty, null, true, false);
     }
 
-    /// Merges a keyword into the `default` section or a job.
-    static MergeKeyword job(String job, @Language("yml") String keywordYaml, @Nullable Boolean acceptTheirs) {
-        String yaml = job + ":\n" + LINE_START.matcher(keywordYaml).replaceAll("  ");
-        return new MergeKeyword(job, firstKey(keywordYaml), yaml, acceptTheirs, null, null, false);
+    /// Merges a keyword into the `default` section, adding the section when it is missing.
+    static MergeKeyword defaults(@Language("yml") String keywordYaml, @Nullable Boolean acceptTheirs) {
+        return section("default", keywordYaml, acceptTheirs, false);
+    }
+
+    /// Merges a keyword into a job defined in the file, or into the `default` section when `job` is `null`.
+    /// A job that is missing, or not defined as a mapping, is left alone.
+    static MergeKeyword job(@Nullable String job, @Language("yml") String keywordYaml, @Nullable Boolean acceptTheirs) {
+        return job == null ? defaults(keywordYaml, acceptTheirs) : section(job, keywordYaml, acceptTheirs, true);
+    }
+
+    private static MergeKeyword section(String key, @Language("yml") String keywordYaml, @Nullable Boolean acceptTheirs,
+                                        boolean existingMappingOnly) {
+        String yaml = key + ":\n" + LINE_START.matcher(keywordYaml).replaceAll("  ");
+        return new MergeKeyword(key, firstKey(keywordYaml), yaml, acceptTheirs, null, null, false, existingMappingOnly);
     }
 
     /// Merges a list of scalars, placing each item missing from an existing list by the order of `items`.
     static MergeKeyword list(String key, List<String> items, @Nullable Boolean acceptTheirs) {
-        return new MergeKeyword(key, null, listYaml(key, items), acceptTheirs, null, items, false);
+        return new MergeKeyword(key, null, listYaml(key, items), acceptTheirs, null, items, false, false);
     }
 
     private static String firstKey(String yaml) {
@@ -107,6 +119,9 @@ class MergeKeyword {
     private Yaml.Documents merge(Yaml.Documents documents, ExecutionContext ctx) {
         List<Yaml.Mapping.Entry> rootEntries = entries(documents.getDocuments().get(0).getBlock());
         Yaml.Mapping.Entry existing = find(rootEntries, key);
+        if (existingMappingOnly && (existing == null || !(existing.getValue() instanceof Yaml.Mapping))) {
+            return documents;
+        }
         if (items != null && existing != null && existing.getValue() instanceof Yaml.Sequence) {
             return Boolean.TRUE.equals(acceptTheirs) ? documents :
                     mergeItems(documents, (Yaml.Sequence) existing.getValue(), items, ctx);

@@ -101,5 +101,21 @@ class AddInterruptibleTest implements RewriteTest {
               )
             );
         }
+
+        @Test
+        void noopWhenJobMissing() {
+            //language=yaml
+            rewriteRun(
+              spec ->
+                spec.recipe(new AddInterruptible("buidl", null)),
+              yaml(
+                """
+                  build:
+                    script: make build
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }

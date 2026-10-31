@@ -137,5 +137,21 @@ class AddRetryTest implements RewriteTest {
               )
             );
         }
+
+        @Test
+        void noopWhenJobMissing() {
+            //language=yaml
+            rewriteRun(
+              spec ->
+                spec.recipe(new AddRetry(2, List.of("script_failure"), "buidl", null)),
+              yaml(
+                """
+                  build:
+                    script: make build
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
     }
 }
