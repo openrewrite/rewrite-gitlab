@@ -23,11 +23,10 @@ import org.openrewrite.Option;
 import org.openrewrite.Preconditions;
 import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
-import org.openrewrite.marker.SearchResult;
-import org.openrewrite.yaml.YamlIsoVisitor;
-import org.openrewrite.yaml.tree.Yaml;
+import org.openrewrite.yaml.search.FindKey;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
@@ -68,38 +67,14 @@ public class AddComponent extends Recipe {
             inputs.forEach(input -> includeBlock.append("     ").append(input).append("\n"));
         }
 
+        String anyVersionOfComponent = "$.include[?(@.component =~ '" + Pattern.quote(newComponent) + "(?:@.+)?')].component";
         return Preconditions.check(
-                Preconditions.not(new YamlIsoVisitor<ExecutionContext>() {
-                    @Override
-                    public Yaml.Document visitDocument(Yaml.Document document, ExecutionContext ctx) {
-                        return includesComponent(document.getBlock()) ? SearchResult.found(document) : document;
-                    }
-                }),
+                Preconditions.not(new FindKey(anyVersionOfComponent).getVisitor()),
                 MergeKeyword.global(
                         //language=yml
                         includeBlock.toString(),
                         false,
                         "component")
                         .getVisitor());
-    }
-
-    private boolean includesComponent(Yaml.Block root) {
-        return root instanceof Yaml.Mapping && ((Yaml.Mapping) root).getEntries().stream()
-                .filter(entry -> "include".equals(entry.getKey().getValue()) && entry.getValue() instanceof Yaml.Sequence)
-                .flatMap(entry -> ((Yaml.Sequence) entry.getValue()).getEntries().stream())
-                .map(Yaml.Sequence.Entry::getBlock)
-                .filter(Yaml.Mapping.class::isInstance)
-                .flatMap(include -> ((Yaml.Mapping) include).getEntries().stream())
-                .anyMatch(this::isSameComponent);
-    }
-
-    // Any version of the component counts, so that adding one does not include it twice
-    private boolean isSameComponent(Yaml.Mapping.Entry entry) {
-        if (!"component".equals(entry.getKey().getValue()) || !(entry.getValue() instanceof Yaml.Scalar)) {
-            return false;
-        }
-        String component = ((Yaml.Scalar) entry.getValue()).getValue();
-        int at = component.lastIndexOf('@');
-        return newComponent.equals(at < 0 ? component : component.substring(0, at));
     }
 }
