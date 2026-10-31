@@ -15,6 +15,7 @@
  */
 package org.openrewrite.gitlab;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.test.RecipeSpec;
@@ -299,74 +300,6 @@ class MigrateToRulesTest implements RewriteTest {
     }
 
     @Test
-    void noopWhenRulesAlreadyPresent() {
-        rewriteRun(
-          //language=yaml
-          yaml(
-            """
-              build_job:
-                script: make build
-                rules:
-                  - if: $CI_COMMIT_BRANCH == "main"
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void noopWhenNotPresent() {
-        rewriteRun(
-          //language=yaml
-          yaml(
-            """
-              build_job:
-                script: make build
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void skipComplexOnlyForm() {
-        rewriteRun(
-          //language=yaml
-          yaml(
-            """
-              build_job:
-                script: make build
-                only:
-                  refs:
-                    - main
-                  variables:
-                    - $DEPLOY
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void skipComplexExceptForm() {
-        rewriteRun(
-          //language=yaml
-          yaml(
-            """
-              build_job:
-                script: make build
-                except:
-                  refs:
-                    - main
-                  variables:
-                    - $DEPLOY
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
     void multipleJobs() {
         rewriteRun(
           //language=yaml
@@ -471,186 +404,6 @@ class MigrateToRulesTest implements RewriteTest {
     }
 
     @Test
-    void skipAnchoredOnly() {
-        rewriteRun(
-          //language=yaml
-          yaml(
-            """
-              build_job:
-                script: make build
-                only: &main_only
-                  - main
-              test_job:
-                script: make test
-                only: *main_only
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void skipAnchoredExceptRef() {
-        rewriteRun(
-          //language=yaml
-          yaml(
-            """
-              build_job:
-                script: make build
-                except:
-                  - &release_branch release
-              variables:
-                RELEASE_BRANCH: *release_branch
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void skipExceptCombinedWithExtendedOnly() {
-        rewriteRun(
-          //language=yaml
-          yaml(
-            """
-              .deploy:
-                script: make deploy
-                only:
-                  - main
-              deploy_job:
-                extends: .deploy
-                except:
-                  - tags
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void skipExceptCombinedWithMergedOnly() {
-        rewriteRun(
-          //language=yaml
-          yaml(
-            """
-              .deploy: &deploy
-                script: make deploy
-                only:
-                  - main
-              deploy_job:
-                <<: *deploy
-                except:
-                  - tags
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void skipOnlyCombinedWithIndirectlyExtendedExcept() {
-        rewriteRun(
-          //language=yaml
-          yaml(
-            """
-              .base:
-                except:
-                  - tags
-              .deploy:
-                extends: .base
-                script: make deploy
-              deploy_job:
-                extends: [.deploy]
-                only:
-                  - main
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void skipWhenExtendingTemplateFromInclude() {
-        rewriteRun(
-          //language=yaml
-          yaml(
-            """
-              include:
-                - remote: https://example.com/templates.yml
-              deploy_job:
-                extends: .remote_deploy
-                only:
-                  - main
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void skipConditionsCombinedFromSiblingTemplates() {
-        rewriteRun(
-          //language=yaml
-          yaml(
-            """
-              .main_only:
-                only:
-                  - main
-              .no_tags:
-                except:
-                  - tags
-              deploy_job:
-                extends: [.main_only, .no_tags]
-                script: make deploy
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void skipConditionsCombinedThroughNestedMerge() {
-        rewriteRun(
-          //language=yaml
-          yaml(
-            """
-              .templates:
-                main_only: &main_only
-                  only:
-                    - main
-                deploy: &deploy
-                  <<: *main_only
-                  except:
-                    - tags
-              deploy_job:
-                <<: *deploy
-                script: make deploy
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
-    void skipLocalTemplateWhenAlsoExtendingTemplateFromInclude() {
-        rewriteRun(
-          //language=yaml
-          yaml(
-            """
-              include:
-                - remote: https://example.com/templates.yml
-              .main_only:
-                only:
-                  - main
-              deploy_job:
-                extends: [.main_only, .remote_deploy]
-              """,
-            source -> source.path(".gitlab-ci.yml")
-          )
-        );
-    }
-
-    @Test
     void migrateExternalAndChatRefs() {
         rewriteRun(
           //language=yaml
@@ -734,19 +487,270 @@ class MigrateToRulesTest implements RewriteTest {
         );
     }
 
-    @Test
-    void noopForNonGitlabCiFiles() {
-        rewriteRun(
-          //language=yaml
-          yaml(
-            """
-              build_job:
-                script: make build
-                only:
-                  - main
-              """,
-            source -> source.path("other-config.yml")
-          )
-        );
+    @Nested
+    class NoChange {
+        @Test
+        void rulesAlreadyPresent() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  build_job:
+                    script: make build
+                    rules:
+                      - if: $CI_COMMIT_BRANCH == "main"
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void noOnlyOrExcept() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  build_job:
+                    script: make build
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void complexOnlyForm() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  build_job:
+                    script: make build
+                    only:
+                      refs:
+                        - main
+                      variables:
+                        - $DEPLOY
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void complexExceptForm() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  build_job:
+                    script: make build
+                    except:
+                      refs:
+                        - main
+                      variables:
+                        - $DEPLOY
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void anchoredOnly() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  build_job:
+                    script: make build
+                    only: &main_only
+                      - main
+                  test_job:
+                    script: make test
+                    only: *main_only
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void anchoredExceptRef() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  build_job:
+                    script: make build
+                    except:
+                      - &release_branch release
+                  variables:
+                    RELEASE_BRANCH: *release_branch
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void exceptCombinedWithExtendedOnly() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  .deploy:
+                    script: make deploy
+                    only:
+                      - main
+                  deploy_job:
+                    extends: .deploy
+                    except:
+                      - tags
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void exceptCombinedWithMergedOnly() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  .deploy: &deploy
+                    script: make deploy
+                    only:
+                      - main
+                  deploy_job:
+                    <<: *deploy
+                    except:
+                      - tags
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void onlyCombinedWithIndirectlyExtendedExcept() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  .base:
+                    except:
+                      - tags
+                  .deploy:
+                    extends: .base
+                    script: make deploy
+                  deploy_job:
+                    extends: [.deploy]
+                    only:
+                      - main
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void extendingTemplateFromInclude() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  include:
+                    - remote: https://example.com/templates.yml
+                  deploy_job:
+                    extends: .remote_deploy
+                    only:
+                      - main
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void conditionsCombinedFromSiblingTemplates() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  .main_only:
+                    only:
+                      - main
+                  .no_tags:
+                    except:
+                      - tags
+                  deploy_job:
+                    extends: [.main_only, .no_tags]
+                    script: make deploy
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void conditionsCombinedThroughNestedMerge() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  .templates:
+                    main_only: &main_only
+                      only:
+                        - main
+                    deploy: &deploy
+                      <<: *main_only
+                      except:
+                        - tags
+                  deploy_job:
+                    <<: *deploy
+                    script: make deploy
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void localTemplateAlsoExtendingTemplateFromInclude() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  include:
+                    - remote: https://example.com/templates.yml
+                  .main_only:
+                    only:
+                      - main
+                  deploy_job:
+                    extends: [.main_only, .remote_deploy]
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void otherYamlFiles() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  build_job:
+                    script: make build
+                    only:
+                      - main
+                  """,
+                source -> source.path("other-config.yml")
+              )
+            );
+        }
     }
 }
