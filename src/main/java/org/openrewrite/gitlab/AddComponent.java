@@ -20,10 +20,13 @@ import lombok.Value;
 import org.jspecify.annotations.Nullable;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
+import org.openrewrite.Preconditions;
 import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
+import org.openrewrite.yaml.search.FindKey;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
@@ -64,11 +67,14 @@ public class AddComponent extends Recipe {
             inputs.forEach(input -> includeBlock.append("     ").append(input).append("\n"));
         }
 
-        return MergeKeyword.global(
-                //language=yml
-                includeBlock.toString(),
-                false,
-                "component")
-                .getVisitor();
+        String anyVersionOfComponent = "$.include[?(@.component =~ '" + Pattern.quote(newComponent) + "(?:@.+)?')].component";
+        return Preconditions.check(
+                Preconditions.not(new FindKey(anyVersionOfComponent).getVisitor()),
+                MergeKeyword.global(
+                        //language=yml
+                        includeBlock.toString(),
+                        false,
+                        "component")
+                        .getVisitor());
     }
 }
