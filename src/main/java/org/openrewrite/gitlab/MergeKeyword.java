@@ -42,6 +42,7 @@ import static java.util.stream.Collectors.toSet;
 @RequiredArgsConstructor
 class MergeKeyword {
     private static final Pattern LINE_START = Pattern.compile("(?m)^(?=.)");
+    private static final Pattern REMOTE_URL = Pattern.compile("https?://");
 
     private final String key;
     private final @Nullable String jobKeyword;
@@ -52,21 +53,27 @@ class MergeKeyword {
     private final @Nullable Boolean acceptTheirs;
     private final @Nullable String objectIdentifyingProperty;
     private final @Nullable List<String> items;
+    private final boolean beforeTrailingRemotes;
 
     static MergeKeyword global(@Language("yml") String yaml, @Nullable Boolean acceptTheirs,
                                @Nullable String objectIdentifyingProperty) {
-        return new MergeKeyword(firstKey(yaml), null, yaml, acceptTheirs, objectIdentifyingProperty, null);
+        return new MergeKeyword(firstKey(yaml), null, yaml, acceptTheirs, objectIdentifyingProperty, null, false);
+    }
+
+    /// Merges an entry into the `include` list, ahead of any `remote` includes that end it.
+    static MergeKeyword include(@Language("yml") String yaml, String objectIdentifyingProperty) {
+        return new MergeKeyword("include", null, yaml, false, objectIdentifyingProperty, null, true);
     }
 
     /// Merges a keyword into the `default` section or a job.
     static MergeKeyword job(String job, @Language("yml") String keywordYaml, @Nullable Boolean acceptTheirs) {
         String yaml = job + ":\n" + LINE_START.matcher(keywordYaml).replaceAll("  ");
-        return new MergeKeyword(job, firstKey(keywordYaml), yaml, acceptTheirs, null, null);
+        return new MergeKeyword(job, firstKey(keywordYaml), yaml, acceptTheirs, null, null, false);
     }
 
     /// Merges a list of scalars, placing each item missing from an existing list by the order of `items`.
     static MergeKeyword list(String key, List<String> items, @Nullable Boolean acceptTheirs) {
-        return new MergeKeyword(key, null, listYaml(key, items), acceptTheirs, null, items);
+        return new MergeKeyword(key, null, listYaml(key, items), acceptTheirs, null, items, false);
     }
 
     private static String firstKey(String yaml) {
@@ -157,6 +164,9 @@ class MergeKeyword {
                 return insertsAfterBlockScalar(jobEntries, placement) ? KeywordOrder.Placement.LAST : placement;
             }
         }
+        if (beforeTrailingRemotes && existing.getValue() instanceof Yaml.Sequence) {
+            return beforeTrailingRemotes(((Yaml.Sequence) existing.getValue()).getEntries());
+        }
         return KeywordOrder.Placement.LAST;
     }
 
@@ -168,6 +178,44 @@ class MergeKeyword {
         }
         int next = keys(entries).indexOf(placement.getProperty()) + 1;
         return next < entries.size() && !entries.get(next).getPrefix().contains("\n");
+    }
+
+    // MergeYaml finds the include to insert before by the same key as `identifier`, so the new include is appended
+    // when that key does not single out the first of the trailing remote includes
+    private static KeywordOrder.Placement beforeTrailingRemotes(List<Yaml.Sequence.Entry> includes) {
+        int firstTrailingRemote = includes.size();
+        while (firstTrailingRemote > 0 && isRemote(includes.get(firstTrailingRemote - 1).getBlock())) {
+            firstTrailingRemote--;
+        }
+        if (firstTrailingRemote == includes.size()) {
+            return KeywordOrder.Placement.LAST;
+        }
+        List<String> identifiers = includes.stream().map(e -> identifier(e.getBlock())).collect(toList());
+        String remote = identifiers.get(firstTrailingRemote);
+        return identifiers.indexOf(remote) == firstTrailingRemote ?
+                new KeywordOrder.Placement(InsertMode.Before, remote) :
+                KeywordOrder.Placement.LAST;
+    }
+
+    private static boolean isRemote(Yaml.Block include) {
+        if (include instanceof Yaml.Scalar) {
+            return REMOTE_URL.matcher(((Yaml.Scalar) include).getValue()).lookingAt();
+        }
+        return find(entries(include), "remote") != null;
+    }
+
+    private static String identifier(Yaml.Block include) {
+        if (include instanceof Yaml.Scalar) {
+            return ((Yaml.Scalar) include).getValue();
+        }
+        List<Yaml.Mapping.Entry> entries = entries(include);
+        if (entries.isEmpty()) {
+            return "";
+        }
+        Yaml.Mapping.Entry first = entries.get(0);
+        return first.getValue() instanceof Yaml.Scalar ?
+                first.getKey().getValue() + ": " + ((Yaml.Scalar) first.getValue()).getValue() :
+                first.getKey().getValue();
     }
 
     private static boolean isHeader(Yaml.Document document) {

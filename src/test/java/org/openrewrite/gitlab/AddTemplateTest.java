@@ -65,6 +65,48 @@ class AddTemplateTest implements RewriteTest {
         );
     }
 
+    @Test
+    void addBeforeTrailingRemote() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - template: Gradle.gitlab-ci.yml
+                - remote: https://example.com/infrastructure.yml
+              """,
+            """
+              include:
+                - template: Gradle.gitlab-ci.yml
+                - template: Jobs/SAST.gitlab-ci.yml
+                - remote: https://example.com/infrastructure.yml
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void addLastWhenRemoteIsFollowedByOtherIncludes() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - remote: https://example.com/infrastructure.yml
+                - template: Gradle.gitlab-ci.yml
+              """,
+            """
+              include:
+                - remote: https://example.com/infrastructure.yml
+                - template: Gradle.gitlab-ci.yml
+                - template: Jobs/SAST.gitlab-ci.yml
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
     @Nested
     class NoChange {
         @Test
