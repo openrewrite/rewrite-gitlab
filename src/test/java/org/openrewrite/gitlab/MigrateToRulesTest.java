@@ -564,6 +564,30 @@ class MigrateToRulesTest implements RewriteTest {
     }
 
     @Test
+    void migrateObjectFormQuotingConditionWhenNeeded() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              deploy_job:
+                script: make deploy
+                only:
+                  refs: [main]
+                  variables:
+                    - '$DEPLOY_TARGET == "eu: west"'
+              """,
+            """
+              deploy_job:
+                script: make deploy
+                rules:
+                  - if: '$CI_COMMIT_BRANCH == ''main'' && $DEPLOY_TARGET == "eu: west"'
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void migrateObjectFormKubernetes() {
         rewriteRun(
           //language=yaml
@@ -668,6 +692,190 @@ class MigrateToRulesTest implements RewriteTest {
                   - if: $CI_COMMIT_BRANCH == 'main'
                     when: never
                   - if: $CI_COMMIT_BRANCH
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateObjectFormRefsAndChanges() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              deploy_job:
+                script: make deploy
+                only:
+                  refs:
+                    - main@group/project
+                    - merge_requests
+                  changes:
+                    - src/**/*
+                    - build.gradle
+                    - "**/*.json"
+              """,
+            """
+              deploy_job:
+                script: make deploy
+                rules:
+                  - if: $CI_COMMIT_BRANCH == 'main' && $CI_PROJECT_PATH == 'group/project'
+                    changes:
+                      - src/**/*
+                      - build.gradle
+                      - "**/*.json"
+                  - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+                    changes:
+                      - src/**/*
+                      - build.gradle
+                      - "**/*.json"
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateObjectFormChangesWithDefaultRefs() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              docker_job:
+                script: make image
+                only:
+                  changes: [Dockerfile, docker/**/*]
+              """,
+            """
+              docker_job:
+                script: make image
+                rules:
+                  - if: $CI_COMMIT_BRANCH
+                    changes:
+                      - Dockerfile
+                      - docker/**/*
+                  - if: $CI_COMMIT_TAG
+                    changes:
+                      - Dockerfile
+                      - docker/**/*
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateObjectFormExceptChanges() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              build_job:
+                script: make build
+                except:
+                  refs: [tags]
+                  changes: [docs/**/*, '*.md']
+              """,
+            """
+              build_job:
+                script: make build
+                rules:
+                  - if: $CI_COMMIT_TAG
+                    when: never
+                  - changes:
+                      - docs/**/*
+                      - '*.md'
+                    when: never
+                  - when: always
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateObjectFormsWithAllSubKeys() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              deploy_job:
+                script: make deploy
+                only:
+                  refs: [main, merge_requests]
+                  changes: [src/**/*, build.gradle]
+                  variables: [$RELEASE == "true", $FORCE_DEPLOY]
+                  kubernetes: active
+                except:
+                  refs: [tags]
+                  changes: [docs/**/*]
+                  variables: [$SKIP]
+              """,
+            """
+              deploy_job:
+                script: make deploy
+                rules:
+                  - if: $CI_COMMIT_TAG
+                    when: never
+                  - if: $SKIP
+                    when: never
+                  - changes:
+                      - docs/**/*
+                    when: never
+                  - if: $CI_COMMIT_BRANCH == 'main' && ($RELEASE == "true" || $FORCE_DEPLOY) && $CI_KUBERNETES_ACTIVE
+                    changes:
+                      - src/**/*
+                      - build.gradle
+                  - if: $CI_PIPELINE_SOURCE == 'merge_request_event' && ($RELEASE == "true" || $FORCE_DEPLOY) && $CI_KUBERNETES_ACTIVE
+                    changes:
+                      - src/**/*
+                      - build.gradle
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void migrateObjectFormKeepsChangesAlias() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              .backend:
+                rules:
+                  - changes: &backend_paths
+                      - src/**/*
+                      - build.gradle
+              build_job:
+                script: make build
+                only:
+                  refs: [main@group/project, merge_requests]
+                  changes: *backend_paths
+              test_job:
+                script: make test
+                except:
+                  changes: *backend_paths
+              """,
+            """
+              .backend:
+                rules:
+                  - changes: &backend_paths
+                      - src/**/*
+                      - build.gradle
+              build_job:
+                script: make build
+                rules:
+                  - if: $CI_COMMIT_BRANCH == 'main' && $CI_PROJECT_PATH == 'group/project'
+                    changes: *backend_paths
+                  - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+                    changes: *backend_paths
+              test_job:
+                script: make test
+                rules:
+                  - changes: *backend_paths
+                    when: never
+                  - when: always
               """,
             source -> source.path(".gitlab-ci.yml")
           )
@@ -809,6 +1017,83 @@ class MigrateToRulesTest implements RewriteTest {
                     script: make test
                     only:
                       variables: *deploy_vars
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void changesWithVariable() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  build_job:
+                    script: make build
+                    only:
+                      refs: [main]
+                      changes:
+                        - $SERVICE_DIR/**/*
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void changesAsMapping() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  build_job:
+                    script: make build
+                    only:
+                      refs: [main]
+                      changes:
+                        paths: [src/**/*]
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void changesAliasOfMapping() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  .backend:
+                    changes: &backend
+                      paths: [src/**/*]
+                  build_job:
+                    script: make build
+                    only:
+                      changes: *backend
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void anchoredChangesAliasedElsewhere() {
+            rewriteRun(
+              //language=yaml
+              yaml(
+                """
+                  build_job:
+                    script: make build
+                    only:
+                      refs: [main]
+                      changes: &backend_paths
+                        - src/**/*
+                  test_job:
+                    script: make test
+                    rules:
+                      - changes: *backend_paths
                   """,
                 source -> source.path(".gitlab-ci.yml")
               )

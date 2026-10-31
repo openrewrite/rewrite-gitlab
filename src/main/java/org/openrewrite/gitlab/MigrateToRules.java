@@ -116,14 +116,17 @@ public class MigrateToRules extends Recipe {
         if (except != null) {
             if (except.refs != null) {
                 for (String ref : except.refs) {
-                    rules.add(new Rule(refToCondition(ref), "never"));
+                    rules.add(new Rule(refToCondition(ref), null, "never"));
                 }
             }
             for (String expression : except.variables) {
-                rules.add(new Rule(expression, "never"));
+                rules.add(new Rule(expression, null, "never"));
+            }
+            if (except.changes != null) {
+                rules.add(new Rule(null, except.changes, "never"));
             }
             if (except.kubernetes) {
-                rules.add(new Rule(KUBERNETES_ACTIVE, "never"));
+                rules.add(new Rule(KUBERNETES_ACTIVE, null, "never"));
             }
         }
         if (only != null) {
@@ -135,17 +138,18 @@ public class MigrateToRules extends Recipe {
                 conjuncts.add(KUBERNETES_ACTIVE);
             }
             for (String ref : only.refs == null ? DEFAULT_ONLY_REFS : only.refs) {
-                rules.add(new Rule(and(refToCondition(ref), conjuncts), null));
+                rules.add(new Rule(and(refToCondition(ref), conjuncts), only.changes, null));
             }
         } else {
-            rules.add(new Rule(null, "always"));
+            rules.add(new Rule(null, null, "always"));
         }
 
         Yaml.Mapping.Entry replaced = onlyEntry != null ? onlyEntry : exceptEntry;
-        Yaml.Mapping.Entry rulesEntry = parseRulesEntry(render(rules), replaced.getPrefix());
-        if (rulesEntry == null) {
+        Yaml.Mapping.Entry parsed = parseRulesEntry(render(rules), replaced.getPrefix());
+        if (parsed == null) {
             return m;
         }
+        Yaml.Mapping.Entry rulesEntry = withChangesAliases(parsed, rules);
         return m.withEntries(ListUtils.map(m.getEntries(), entry -> {
             if (entry == replaced) {
                 return rulesEntry;
@@ -164,11 +168,47 @@ public class MigrateToRules extends Recipe {
                 sb.append(separator).append("if: ").append(scalar(rule.condition));
                 separator = "\n          ";
             }
+            if (rule.changes instanceof Yaml.Sequence) {
+                sb.append(separator).append("changes:");
+                for (Yaml.Sequence.Entry path : ((Yaml.Sequence) rule.changes).getEntries()) {
+                    sb.append("\n            - ").append(print((Yaml.Scalar) path.getBlock()));
+                }
+                separator = "\n          ";
+            } else if (rule.changes != null) {
+                sb.append(separator).append("changes: []");
+                separator = "\n          ";
+            }
             if (rule.when != null) {
                 sb.append(separator).append("when: ").append(rule.when);
             }
         }
         return sb.toString();
+    }
+
+    // Reusing the alias keeps the paths shared with the anchor, which a standalone parse can't resolve
+    private static Yaml.Mapping.Entry withChangesAliases(Yaml.Mapping.Entry rulesEntry, List<Rule> rules) {
+        Yaml.Sequence sequence = (Yaml.Sequence) rulesEntry.getValue();
+        return rulesEntry.withValue(sequence.withEntries(ListUtils.map(sequence.getEntries(), (i, seqEntry) -> {
+            Yaml changes = rules.get(i).changes;
+            if (!(changes instanceof Yaml.Alias)) {
+                return seqEntry;
+            }
+            Yaml.Mapping rule = (Yaml.Mapping) seqEntry.getBlock();
+            return seqEntry.withBlock(rule.withEntries(ListUtils.map(rule.getEntries(), entry ->
+                    "changes".equals(entry.getKey().getValue()) ?
+                            entry.withValue(((Yaml.Alias) changes).withId(Tree.randomId()).withPrefix(" ")) : entry)));
+        })));
+    }
+
+    private static String print(Yaml.Scalar scalar) {
+        switch (scalar.getStyle()) {
+            case SINGLE_QUOTED:
+                return '\'' + scalar.getValue() + '\'';
+            case DOUBLE_QUOTED:
+                return '"' + scalar.getValue() + '"';
+            default:
+                return scalar.getValue();
+        }
     }
 
     private static String and(String condition, List<String> conjuncts) {
@@ -182,13 +222,14 @@ public class MigrateToRules extends Recipe {
     private static @Nullable Conditions conditions(Yaml value, Map<UUID, Yaml> aliases) {
         if (value instanceof Yaml.Sequence) {
             List<String> refs = extractRefs((Yaml.Sequence) value);
-            return refs == null ? null : new Conditions(refs, emptyList(), false);
+            return refs == null ? null : new Conditions(refs, emptyList(), null, false);
         }
         if (!(value instanceof Yaml.Mapping) || ((Yaml.Mapping) value).getEntries().isEmpty()) {
             return null;
         }
         List<String> refs = null;
         List<String> variables = emptyList();
+        Yaml changes = null;
         boolean kubernetes = false;
         for (Yaml.Mapping.Entry entry : ((Yaml.Mapping) value).getEntries()) {
             Yaml subValue = entry.getValue();
@@ -207,6 +248,12 @@ public class MigrateToRules extends Recipe {
                     }
                     variables = expressions;
                     break;
+                case "changes":
+                    if (!isPathList(subValue instanceof Yaml.Alias ? aliases.get(subValue.getId()) : subValue)) {
+                        return null;
+                    }
+                    changes = subValue;
+                    break;
                 case "kubernetes":
                     if (!(subValue instanceof Yaml.Scalar) || !"active".equals(((Yaml.Scalar) subValue).getValue())) {
                         return null;
@@ -217,7 +264,26 @@ public class MigrateToRules extends Recipe {
                     return null;
             }
         }
-        return new Conditions(refs, variables, kubernetes);
+        return new Conditions(refs, variables, changes, kubernetes);
+    }
+
+    // Unlike `only:changes`, `rules:changes` expands CI/CD variables in paths
+    private static boolean isPathList(@Nullable Yaml paths) {
+        if (!(paths instanceof Yaml.Sequence) || ((Yaml.Sequence) paths).getEntries().isEmpty()) {
+            return false;
+        }
+        for (Yaml.Sequence.Entry seqEntry : ((Yaml.Sequence) paths).getEntries()) {
+            if (!(seqEntry.getBlock() instanceof Yaml.Scalar)) {
+                return false;
+            }
+            Yaml.Scalar path = (Yaml.Scalar) seqEntry.getBlock();
+            if (path.getTag() != null || path.getValue().contains("$") ||
+                path.getStyle() != Yaml.Scalar.Style.PLAIN && path.getStyle() != Yaml.Scalar.Style.SINGLE_QUOTED &&
+                path.getStyle() != Yaml.Scalar.Style.DOUBLE_QUOTED) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static @Nullable List<String> expressions(Yaml.Sequence seq) {
@@ -419,10 +485,14 @@ public class MigrateToRules extends Recipe {
         List<String> refs;
 
         List<String> variables;
+
+        @Nullable
+        Yaml changes;
+
         boolean kubernetes;
 
         boolean isEmpty() {
-            return (refs == null || refs.isEmpty()) && variables.isEmpty() && !kubernetes;
+            return (refs == null || refs.isEmpty()) && variables.isEmpty() && changes == null && !kubernetes;
         }
     }
 
@@ -430,6 +500,9 @@ public class MigrateToRules extends Recipe {
     private static class Rule {
         @Nullable
         String condition;
+
+        @Nullable
+        Yaml changes;
 
         @Nullable
         String when;
