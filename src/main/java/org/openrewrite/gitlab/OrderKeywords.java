@@ -37,22 +37,9 @@ import static java.util.Comparator.comparingInt;
 @Value
 public class OrderKeywords extends Recipe {
 
-    private static final List<String> GLOBAL_KEYWORDS = asList(
-            "include", "stages", "variables", "workflow", "default");
-
     private static final Set<String> NON_JOB_KEYS = new HashSet<>(asList(
             "include", "stages", "variables", "workflow", "spec",
             "image", "services", "cache", "before_script", "after_script"));
-
-    private static final List<String> JOB_KEYWORDS = asList(
-            "<<", "extends", "inherit",
-            "stage", "needs", "dependencies",
-            "rules", "only", "except", "when", "start_in", "manual_confirmation", "allow_failure",
-            "trigger", "image", "services", "tags", "resource_group", "environment",
-            "parallel", "interruptible", "timeout", "retry",
-            "inputs", "variables", "id_tokens", "identity", "secrets", "cache",
-            "hooks", "before_script", "script", "run", "after_script",
-            "coverage", "artifacts", "pages", "release", "dast_configuration");
 
     private static final Pattern REST_OF_LINE = Pattern.compile("[^\n]*?(\r?\n|\\z)");
 
@@ -87,7 +74,7 @@ public class OrderKeywords extends Recipe {
                         prefixes[rootEntries.size()] = document.getEnd().getPrefix();
                         root = root.withEntries(ListUtils.map(rootEntries, (i, entry) -> {
                             entry = entry.withPrefix(prefixes[i]);
-                            Reordered job = isJob(entry) ? order((Yaml.Mapping) entry.getValue(), JOB_KEYWORDS,
+                            Reordered job = isJob(entry) ? order((Yaml.Mapping) entry.getValue(), KeywordOrder.JOB,
                                     prefixes[i + 1], newline, aliases, cursor) : null;
                             if (job == null) {
                                 return entry;
@@ -96,7 +83,7 @@ public class OrderKeywords extends Recipe {
                             return entry.withValue(job.getMapping());
                         }));
                         String documentEnd = prefixes[rootEntries.size()];
-                        Reordered ordered = order(root, GLOBAL_KEYWORDS, documentEnd, newline, aliases, cursor);
+                        Reordered ordered = order(root, KeywordOrder.GLOBAL, documentEnd, newline, aliases, cursor);
                         if (ordered != null) {
                             root = ordered.getMapping();
                             documentEnd = ordered.getFollowing();
@@ -124,24 +111,19 @@ public class OrderKeywords extends Recipe {
         String lineEnd;
     }
 
-    private static @Nullable Reordered order(Yaml.Mapping mapping, List<String> keywords, String following,
+    private static @Nullable Reordered order(Yaml.Mapping mapping, KeywordOrder order, String following,
                                              String newline, Map<UUID, Yaml> aliases, Cursor cursor) {
         if (mapping.getOpeningBracePrefix() != null) {
             return null;
         }
         List<Yaml.Mapping.Entry> entries = mapping.getEntries();
         List<Yaml.Mapping.Entry> ordered = new ArrayList<>(entries);
-        ordered.sort(comparingInt(entry -> rank(entry, keywords)));
+        ordered.sort(comparingInt(entry -> order.rank(entry.getKey().getValue())));
         if (ordered.equals(entries) || aliasPrecedesAnchor(ordered) ||
             mergeOverridesPrecedingKey(entries, aliases) || mergeOverridesPrecedingKey(ordered, aliases)) {
             return null;
         }
         return relayout(mapping, ordered, following, newline, cursor);
-    }
-
-    private static int rank(Yaml.Mapping.Entry entry, List<String> keywords) {
-        int index = keywords.indexOf(entry.getKey().getValue());
-        return index < 0 ? keywords.size() : index;
     }
 
     // An entry's prefix starts with the rest of the previous entry's last line (a trailing comment and the line

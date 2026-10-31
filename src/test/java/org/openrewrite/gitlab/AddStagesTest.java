@@ -27,7 +27,7 @@ import static org.openrewrite.yaml.Assertions.yaml;
 class AddStagesTest implements RewriteTest {
     @Override
     public void defaults(RecipeSpec spec) {
-        spec.recipe(new AddStages(List.of("build", "test", "deploy"), false, null));
+        spec.recipe(new AddStages(List.of("build", "test", "deploy"), false));
     }
 
     @DocumentExample
@@ -90,10 +90,151 @@ class AddStagesTest implements RewriteTest {
         //language=yaml
         rewriteRun(
           spec ->
-            spec.recipe(new AddStages(List.of("build", "test", "deploy"), true, null)),
+            spec.recipe(new AddStages(List.of("build", "test", "deploy"), true)),
           yaml(
             """
               stages:
+                - build
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void insertAfterListedStage() {
+        //language=yaml
+        rewriteRun(
+          spec -> spec.recipe(new AddStages(List.of("test", "security"), null)),
+          yaml(
+            """
+              stages:
+                - build
+                - test
+                - deploy
+              """,
+            """
+              stages:
+                - build
+                - test
+                - security
+                - deploy
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void insertBeforeListedStage() {
+        //language=yaml
+        rewriteRun(
+          spec -> spec.recipe(new AddStages(List.of("lint", "build", "test"), null)),
+          yaml(
+            """
+              stages:
+                - build
+                - deploy
+              """,
+            """
+              stages:
+                - lint
+                - build
+                - test
+                - deploy
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void addNewAfterInclude() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - template: Gradle.gitlab-ci.yml
+
+              build:
+                script: ./gradlew build
+              """,
+            """
+              include:
+                - template: Gradle.gitlab-ci.yml
+              stages:
+                - build
+                - test
+                - deploy
+
+              build:
+                script: ./gradlew build
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void addNewAtTopOfFile() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              build:
+                script: ./gradlew build
+              """,
+            """
+              stages:
+                - build
+                - test
+                - deploy
+              build:
+                script: ./gradlew build
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void appendStageWithoutListedNeighbor() {
+        //language=yaml
+        rewriteRun(
+          spec -> spec.recipe(new AddStages(List.of("security"), null)),
+          yaml(
+            """
+              stages:
+                - build
+                - test
+              """,
+            """
+              stages:
+                - build
+                - test
+                - security
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void insertBeforeListedStageAfterUnlistedOnes() {
+        //language=yaml
+        rewriteRun(
+          spec -> spec.recipe(new AddStages(List.of("lint", "build"), null)),
+          yaml(
+            """
+              stages:
+                - prepare
+                - build
+              """,
+            """
+              stages:
+                - prepare
+                - lint
                 - build
               """,
             source -> source.path(".gitlab-ci.yml")

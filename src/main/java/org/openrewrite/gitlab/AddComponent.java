@@ -18,14 +18,12 @@ package org.openrewrite.gitlab;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
+import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.yaml.MergeYaml;
-import org.openrewrite.yaml.MergeYaml.InsertMode;
+import org.openrewrite.TreeVisitor;
 
 import java.util.List;
-
-import static java.util.Collections.singletonList;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
@@ -47,19 +45,12 @@ public class AddComponent extends Recipe {
     @Nullable
     List<String> inputs;
 
-    @Option(displayName = "Insert mode",
-            description = "Choose an insertion point when multiple mappings exist. Default is `Last`.",
-            valid = {"Before", "After", "Last"},
-            required = false)
-    @Nullable
-    InsertMode insertMode;
-
     String displayName = "Add GitLab component";
 
     String description = "Add a GitLab component to an existing list, or add a new list where none was present.";
 
     @Override
-    public List<Recipe> getRecipeList() {
+    public TreeVisitor<?, ExecutionContext> getVisitor() {
         StringBuilder includeBlock = new StringBuilder()
                 .append("include:\n")
                 .append(" - component: ")
@@ -73,17 +64,11 @@ public class AddComponent extends Recipe {
             inputs.forEach(input -> includeBlock.append("     ").append(input).append("\n"));
         }
 
-        return singletonList(
-                new MergeYaml(
-                        "$",
-                        //language=yml
-                        includeBlock.toString(),
-                        false,
-                        "component",
-                        ".gitlab-ci.yml",
-                        insertMode,
-                        null,
-                        null)
-        );
+        return MergeKeyword.global(
+                //language=yml
+                includeBlock.toString(),
+                false,
+                "component")
+                .getVisitor();
     }
 }

@@ -18,54 +18,34 @@ package org.openrewrite.gitlab;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
+import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.yaml.MergeYaml;
-import org.openrewrite.yaml.MergeYaml.InsertMode;
+import org.openrewrite.TreeVisitor;
 
 import java.util.List;
-
-import static java.util.Collections.singletonList;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
 public class AddStages extends Recipe {
     @Option(displayName = "Stages",
-            description = "Stages to add.",
+            description = "Stages to add, in the order they run. A stage missing from an existing `stages` list goes after " +
+                          "the listed stage before it.",
             example = "build,test,deploy")
     List<String> stages;
 
     @Option(displayName = "Accept theirs",
-            description = "When the set of stages would conflict, prefer the original value.",
+            description = "Leave an existing `stages` list untouched, so stages are only added to files that declare none.",
             required = false)
     @Nullable
     Boolean acceptTheirs;
-
-    @Option(displayName = "Insert mode",
-            description = "Choose an insertion point when multiple mappings exist. Default is `Last`.",
-            valid = {"Before", "After", "Last"},
-            required = false)
-    @Nullable
-    InsertMode insertMode;
 
     String displayName = "Add GitLab stages";
 
     String description = "Add or Update the set of stages defined in `.gitlab-ci.yml`.";
 
     @Override
-    public List<Recipe> getRecipeList() {
-        return singletonList(
-                new MergeYaml(
-                        "$",
-                        //language=yml
-                        "stages:\n" +
-                                (stages == null ? "" : ("  - " + String.join("\n  - ", stages))),
-                        acceptTheirs,
-                        "stages",
-                        ".gitlab-ci.yml",
-                        insertMode,
-                        null,
-                        null)
-        );
+    public TreeVisitor<?, ExecutionContext> getVisitor() {
+        return MergeKeyword.list("stages", stages, acceptTheirs).getVisitor();
     }
 }

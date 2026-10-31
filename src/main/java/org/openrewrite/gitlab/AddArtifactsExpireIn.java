@@ -18,13 +18,10 @@ package org.openrewrite.gitlab;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
+import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.yaml.MergeYaml;
-
-import java.util.List;
-
-import static java.util.Collections.singletonList;
+import org.openrewrite.TreeVisitor;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
@@ -53,19 +50,8 @@ public class AddArtifactsExpireIn extends Recipe {
     String description = "Set `artifacts:expire_in` in `.gitlab-ci.yml` to prevent storage bloat from indefinitely stored artifacts.";
 
     @Override
-    public List<Recipe> getRecipeList() {
+    public TreeVisitor<?, ExecutionContext> getVisitor() {
         String target = jobName != null ? jobName : "default";
-        return singletonList(
-                new MergeYaml(
-                        "$",
-                        //language=yml
-                        target + ":\n  artifacts:\n    expire_in: " + expireIn,
-                        acceptTheirs,
-                        null,
-                        ".gitlab-ci.yml",
-                        null,
-                        null,
-                        null)
-        );
+        return MergeKeyword.job(target, "artifacts:\n  expire_in: " + expireIn, acceptTheirs).getVisitor();
     }
 }

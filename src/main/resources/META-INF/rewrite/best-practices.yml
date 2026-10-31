@@ -45,7 +45,6 @@ recipeList:
       expireIn: 1 week
   - org.openrewrite.gitlab.AddTimeout:
       timeout: 1 hour
-  # Last, so that it also orders the keywords added above
   - org.openrewrite.gitlab.OrderKeywords
 ---
 type: specs.openrewrite.org/v1beta/recipe

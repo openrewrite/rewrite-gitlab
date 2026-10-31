@@ -77,8 +77,8 @@ class AddInterruptibleTest implements RewriteTest {
               """,
             """
               build_job:
-                script: make build
                 interruptible: true
+                script: make build
               """,
             source -> source.path(".gitlab-ci.yml")
           )

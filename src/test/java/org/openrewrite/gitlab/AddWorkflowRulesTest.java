@@ -56,6 +56,36 @@ class AddWorkflowRulesTest implements RewriteTest {
     }
 
     @Test
+    void addBeforeJobs() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              variables:
+                GIT_DEPTH: 10
+
+              build_job:
+                script: make build
+              """,
+            """
+              variables:
+                GIT_DEPTH: 10
+              workflow:
+                rules:
+                  - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+                  - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+                    when: never
+                  - if: $CI_COMMIT_BRANCH
+
+              build_job:
+                script: make build
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void mergeIntoExistingWorkflow() {
         //language=yaml
         rewriteRun(

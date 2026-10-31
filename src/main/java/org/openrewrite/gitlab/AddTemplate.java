@@ -17,15 +17,10 @@ package org.openrewrite.gitlab;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
-import org.jspecify.annotations.Nullable;
+import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.yaml.MergeYaml;
-import org.openrewrite.yaml.MergeYaml.InsertMode;
-
-import java.util.List;
-
-import static java.util.Collections.singletonList;
+import org.openrewrite.TreeVisitor;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
@@ -36,29 +31,16 @@ public class AddTemplate extends Recipe {
             example = "OpenTofu/Base.gitlab-ci.yml")
     String newTemplate;
 
-    @Option(displayName = "Insert mode",
-            description = "Choose an insertion point when multiple mappings exist. Default is `Last`.",
-            valid = {"Before", "After", "Last"},
-            required = false)
-    @Nullable
-    InsertMode insertMode;
-
     String displayName = "Add GitLab template";
 
     String description = "Add a GitLab template to an existing list, or add a new list where none was present.";
 
     @Override
-    public List<Recipe> getRecipeList() {
-        return singletonList(
-                new MergeYaml(
-                        "$",
-                        "include:\n - template: " + newTemplate,
-                        false,
-                        "template",
-                        ".gitlab-ci.yml",
-                        insertMode,
-                        null,
-                        null)
-        );
+    public TreeVisitor<?, ExecutionContext> getVisitor() {
+        return MergeKeyword.global(
+                "include:\n - template: " + newTemplate,
+                false,
+                "template")
+                .getVisitor();
     }
 }
