@@ -46,17 +46,3 @@ recipeList:
   - org.openrewrite.gitlab.AddTimeout:
       timeout: 1 hour
   - org.openrewrite.gitlab.OrderKeywords
----
-type: specs.openrewrite.org/v1beta/recipe
-name: org.openrewrite.gitlab.search.FindDeprecatedSyntax
-displayName: Find deprecated GitLab CI syntax
-description: >-
-  Find usages of deprecated `only` and `except` keywords in `.gitlab-ci.yml`.
-  These keywords are deprecated in favor of `rules`.
-tags:
-  - gitlab
-  - ci
-  - search
-recipeList:
-  - org.openrewrite.gitlab.search.FindDeprecatedOnly
-  - org.openrewrite.gitlab.search.FindDeprecatedExcept
