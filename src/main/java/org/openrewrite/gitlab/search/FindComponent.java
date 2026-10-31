@@ -17,29 +17,46 @@ package org.openrewrite.gitlab.search;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
+import org.jspecify.annotations.Nullable;
+import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
 import org.openrewrite.Recipe;
-import org.openrewrite.yaml.search.FindKey;
-
-import java.util.List;
-
-import static java.util.Collections.singletonList;
+import org.openrewrite.TreeVisitor;
+import org.openrewrite.gitlab.ComponentMatcher;
+import org.openrewrite.marker.SearchResult;
+import org.openrewrite.yaml.YamlIsoVisitor;
+import org.openrewrite.yaml.tree.Yaml;
 
 @EqualsAndHashCode(callSuper = false)
 @Value
 public class FindComponent extends Recipe {
 
     @Option(displayName = "Component",
-            description = "The component key to look for",
+            description = "The path of the component to look for, without the version.",
             example = "$CI_SERVER_FQDN/components/opentofu/full-pipeline")
     String component;
+
+    @Option(displayName = "Version",
+            description = "Version of the component to look for: an exact version such as `0.10.0`, `~latest` or `main`, " +
+                          "or a semver pattern such as `1.x` or `~1`. Matches any version when omitted.",
+            example = "1.x",
+            required = false)
+    @Nullable
+    String version;
 
     String displayName = "Find GitLab Component";
 
     String description = "Find a GitLab Component in use.";
 
     @Override
-    public List<Recipe> getRecipeList() {
-        return singletonList(new FindKey("$.include[?(@.component =~ '" + component + "(?:@.+)?')].component"));
+    public TreeVisitor<?, ExecutionContext> getVisitor() {
+        ComponentMatcher matcher = new ComponentMatcher(component, version);
+        return new YamlIsoVisitor<ExecutionContext>() {
+            @Override
+            public Yaml.Mapping.Entry visitMappingEntry(Yaml.Mapping.Entry entry, ExecutionContext ctx) {
+                Yaml.Mapping.Entry e = super.visitMappingEntry(entry, ctx);
+                return matcher.find(getCursor()) == null ? e : SearchResult.found(e);
+            }
+        };
     }
 }

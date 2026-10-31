@@ -28,20 +28,20 @@ class ChangeComponentTest implements RewriteTest {
     void updateComponent() {
         rewriteRun(spec -> spec.recipe(
             new ChangeComponent(
-              "some-component",
+              "$CI_SERVER_FQDN/group/renovate",
               "0.10.0",
-              "other-component",
+              "$CI_SERVER_FQDN/group/dependency-updates",
               "1.0.0"
             )),
           //language=yaml
           yaml(
             """
               include:
-                - component: some-component@0.10.0
+                - component: $CI_SERVER_FQDN/group/renovate@0.10.0
               """,
             """
               include:
-                - component: other-component@1.0.0
+                - component: $CI_SERVER_FQDN/group/dependency-updates@1.0.0
               """,
             source -> source.path(".gitlab-ci.yml")
           )
@@ -66,6 +66,32 @@ class ChangeComponentTest implements RewriteTest {
             """
               include:
                 - component: some-component@2.0
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void keepVersionWhenOnlyPathChanges() {
+        rewriteRun(spec -> spec.recipe(
+            new ChangeComponent(
+              "$CI_SERVER_FQDN/group/renovate",
+              null,
+              "$CI_SERVER_FQDN/group/dependency-updates",
+              null
+            )),
+          //language=yaml
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/renovate@1.2.3
+                - component: $CI_SERVER_FQDN/group/renovate@main
+              """,
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/dependency-updates@1.2.3
+                - component: $CI_SERVER_FQDN/group/dependency-updates@main
               """,
             source -> source.path(".gitlab-ci.yml")
           )
@@ -100,20 +126,106 @@ class ChangeComponentTest implements RewriteTest {
     void anyOldVersion() {
         rewriteRun(spec -> spec.recipe(
             new ChangeComponent(
-              "some-component",
-              ".+",
-              "other-component",
-              "0.10.0"
+              "$CI_SERVER_FQDN/group/renovate",
+              null,
+              null,
+              "2.0.0"
             )),
           //language=yaml
           yaml(
             """
               include:
-                - component: some-component@0.10.0
+                - component: $CI_SERVER_FQDN/group/renovate@1.2.3
+                - component: $CI_SERVER_FQDN/group/renovate@~latest
+                - component: $CI_SERVER_FQDN/group/renovate@e3b0c44298fc1c149afbf4c8996fb92427ae41e4
               """,
             """
               include:
-                - component: other-component@0.10.0
+                - component: $CI_SERVER_FQDN/group/renovate@2.0.0
+                - component: $CI_SERVER_FQDN/group/renovate@2.0.0
+                - component: $CI_SERVER_FQDN/group/renovate@2.0.0
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void exactMajorVersion() {
+        rewriteRun(spec -> spec.recipe(
+            new ChangeComponent(
+              "$CI_SERVER_FQDN/group/renovate",
+              "1",
+              null,
+              "2"
+            )),
+          //language=yaml
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/renovate@1
+                - component: $CI_SERVER_FQDN/group/renovate@1.2.3
+              """,
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/renovate@2
+                - component: $CI_SERVER_FQDN/group/renovate@1.2.3
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void xRangeVersion() {
+        rewriteRun(spec -> spec.recipe(
+            new ChangeComponent(
+              "$CI_SERVER_FQDN/group/renovate",
+              "1.x",
+              null,
+              "2.0.0"
+            )),
+          //language=yaml
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/renovate@1
+                - component: $CI_SERVER_FQDN/group/renovate@1.2.3
+                - component: $CI_SERVER_FQDN/group/renovate@2.0.0
+                - component: $CI_SERVER_FQDN/group/renovate@main
+              """,
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/renovate@2.0.0
+                - component: $CI_SERVER_FQDN/group/renovate@2.0.0
+                - component: $CI_SERVER_FQDN/group/renovate@2.0.0
+                - component: $CI_SERVER_FQDN/group/renovate@main
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void tildeRangeVersion() {
+        rewriteRun(spec -> spec.recipe(
+            new ChangeComponent(
+              "$CI_SERVER_FQDN/group/renovate",
+              "~1",
+              null,
+              "2.0.0"
+            )),
+          //language=yaml
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/renovate@1.2.3
+                - component: $CI_SERVER_FQDN/group/renovate@2.1.0
+              """,
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/renovate@2.0.0
+                - component: $CI_SERVER_FQDN/group/renovate@2.1.0
               """,
             source -> source.path(".gitlab-ci.yml")
           )
@@ -138,6 +250,56 @@ class ChangeComponentTest implements RewriteTest {
             """
               include:
                 - component: other-component@2.0
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void branchVersion() {
+        rewriteRun(spec -> spec.recipe(
+            new ChangeComponent(
+              "$CI_SERVER_FQDN/group/renovate",
+              "main",
+              null,
+              "1.0.0"
+            )),
+          //language=yaml
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/renovate@main
+                - component: $CI_SERVER_FQDN/group/renovate@maintenance
+              """,
+            """
+              include:
+                - component: $CI_SERVER_FQDN/group/renovate@1.0.0
+                - component: $CI_SERVER_FQDN/group/renovate@maintenance
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void latestVersion() {
+        rewriteRun(spec -> spec.recipe(
+            new ChangeComponent(
+              "$CI_SERVER_FQDN/group/renovate",
+              "~latest",
+              null,
+              "1.0.0"
+            )),
+          //language=yaml
+          yaml(
+            """
+              include:
+                - component: "$CI_SERVER_FQDN/group/renovate@~latest"
+              """,
+            """
+              include:
+                - component: "$CI_SERVER_FQDN/group/renovate@1.0.0"
               """,
             source -> source.path(".gitlab-ci.yml")
           )
@@ -182,6 +344,47 @@ class ChangeComponentTest implements RewriteTest {
                     - component: other-component@1.0
                   """,
                 source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void pathIsNotARegex() {
+            rewriteRun(spec -> spec.recipe(
+                new ChangeComponent(
+                  "$CI_SERVER_FQDN/group/renovate.ci",
+                  null,
+                  "$CI_SERVER_FQDN/group/dependency-updates",
+                  null
+                )),
+              //language=yaml
+              yaml(
+                """
+                  include:
+                    - component: $CI_SERVER_FQDN/group/renovate-ci@1.0.0
+                    - component: $CI_SERVER_FQDN/group/renovate.ci/extra@1.0.0
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void otherFile() {
+            rewriteRun(spec -> spec.recipe(
+                new ChangeComponent(
+                  "$CI_SERVER_FQDN/group/renovate",
+                  null,
+                  null,
+                  "2.0.0"
+                )),
+              //language=yaml
+              yaml(
+                """
+                  include:
+                    - component: $CI_SERVER_FQDN/group/renovate@1.0.0
+                  """,
+                source -> source.path("other.yml")
               )
             );
         }

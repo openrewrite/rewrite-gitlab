@@ -238,6 +238,158 @@ class AddComponentTest implements RewriteTest {
         );
     }
 
+    @Test
+    void addBeforeTrailingRemote() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - local: .defaults.yml
+                - remote: https://example.com/infrastructure.yml
+              """,
+            """
+              include:
+                - local: .defaults.yml
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                  inputs:
+                    version: 0.10.0
+                    opentofu_version: 1.6.1
+                - remote: https://example.com/infrastructure.yml
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void addBeforeMultipleTrailingRemotes() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - local: .defaults.yml
+                - remote: https://example.com/network.yml
+                - remote: https://example.com/infrastructure.yml
+              build:
+                script: ./gradlew build
+              """,
+            """
+              include:
+                - local: .defaults.yml
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                  inputs:
+                    version: 0.10.0
+                    opentofu_version: 1.6.1
+                - remote: https://example.com/network.yml
+                - remote: https://example.com/infrastructure.yml
+              build:
+                script: ./gradlew build
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void addBeforeRemoteWithRules() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - local: .defaults.yml
+                - rules:
+                    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+                  remote: https://example.com/infrastructure.yml
+              """,
+            """
+              include:
+                - local: .defaults.yml
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                  inputs:
+                    version: 0.10.0
+                    opentofu_version: 1.6.1
+                - rules:
+                    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+                  remote: https://example.com/infrastructure.yml
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void addBeforeOnlyRemotes() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - remote: https://example.com/infrastructure.yml
+              """,
+            """
+              include:
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                  inputs:
+                    version: 0.10.0
+                    opentofu_version: 1.6.1
+                - remote: https://example.com/infrastructure.yml
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void addLastWhenRemoteIsFollowedByOtherIncludes() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - remote: https://example.com/infrastructure.yml
+                - local: .defaults.yml
+              """,
+            """
+              include:
+                - remote: https://example.com/infrastructure.yml
+                - local: .defaults.yml
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                  inputs:
+                    version: 0.10.0
+                    opentofu_version: 1.6.1
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void addBeforeTrailingRemoteUrl() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - build.yml
+                - https://example.com/infrastructure.yml
+              """,
+            """
+              include:
+                - build.yml
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                  inputs:
+                    version: 0.10.0
+                    opentofu_version: 1.6.1
+                - https://example.com/infrastructure.yml
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
     @Nested
     class NoChange {
         @Test
@@ -269,6 +421,21 @@ class AddComponentTest implements RewriteTest {
                     - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.9.0
                       inputs:
                         version: 0.9.0
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
+        void noopWhenOtherVersionPresentBeforeTrailingRemote() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  include:
+                    - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.9.0
+                    - remote: https://example.com/infrastructure.yml
                   """,
                 source -> source.path(".gitlab-ci.yml")
               )

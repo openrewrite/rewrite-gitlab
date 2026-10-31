@@ -70,10 +70,9 @@ public class AddComponent extends Recipe {
         String anyVersionOfComponent = "$.include[?(@.component =~ '" + Pattern.quote(newComponent) + "(?:@.+)?')].component";
         return Preconditions.check(
                 Preconditions.not(new FindKey(anyVersionOfComponent).getVisitor()),
-                MergeKeyword.global(
+                MergeKeyword.include(
                         //language=yml
                         includeBlock.toString(),
-                        false,
                         "component")
                         .getVisitor());
     }
