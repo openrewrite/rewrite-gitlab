@@ -651,6 +651,32 @@ class MigrateToRulesTest implements RewriteTest {
     }
 
     @Test
+    void migrateExternalAndChatRefs() {
+        rewriteRun(
+          //language=yaml
+          yaml(
+            """
+              external_job:
+                script: make external
+                only:
+                  - external
+                  - external_pull_requests
+                  - chat
+              """,
+            """
+              external_job:
+                script: make external
+                rules:
+                  - if: $CI_PIPELINE_SOURCE == 'external'
+                  - if: $CI_PIPELINE_SOURCE == 'external_pull_request_event'
+                  - if: $CI_PIPELINE_SOURCE == 'chat'
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
     void migrateJobExtendingTemplateWithoutConditions() {
         rewriteRun(
           //language=yaml

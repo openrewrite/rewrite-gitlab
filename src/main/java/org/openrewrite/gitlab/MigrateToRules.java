@@ -302,6 +302,12 @@ public class MigrateToRules extends Recipe {
                 return "$CI_PIPELINE_SOURCE == 'trigger'";
             case "pushes":
                 return "$CI_PIPELINE_SOURCE == 'push'";
+            case "external":
+                return "$CI_PIPELINE_SOURCE == 'external'";
+            case "external_pull_requests":
+                return "$CI_PIPELINE_SOURCE == 'external_pull_request_event'";
+            case "chat":
+                return "$CI_PIPELINE_SOURCE == 'chat'";
             default:
                 if (ref.startsWith("/") && ref.endsWith("/")) {
                     return "$CI_COMMIT_BRANCH =~ " + ref;
