@@ -461,6 +461,24 @@ class OrderKeywordsTest implements RewriteTest {
         }
 
         @Test
+        void keyWouldMoveBeforeOverridingMergeKey() {
+            //language=yaml
+            rewriteRun(
+              yaml(
+                """
+                  .globals: &globals
+                    variables:
+                      A: "1"
+                  <<: *globals
+                  variables:
+                    A: "2"
+                  """,
+                source -> source.path(".gitlab-ci.yml")
+              )
+            );
+        }
+
+        @Test
         void aliasWouldPrecedeItsAnchor() {
             //language=yaml
             rewriteRun(

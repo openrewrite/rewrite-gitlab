@@ -132,7 +132,8 @@ public class OrderKeywords extends Recipe {
         List<Yaml.Mapping.Entry> entries = mapping.getEntries();
         List<Yaml.Mapping.Entry> ordered = new ArrayList<>(entries);
         ordered.sort(comparingInt(entry -> rank(entry, keywords)));
-        if (ordered.equals(entries) || aliasPrecedesAnchor(ordered) || mergeOverridesPrecedingKey(entries, aliases)) {
+        if (ordered.equals(entries) || aliasPrecedesAnchor(ordered) ||
+            mergeOverridesPrecedingKey(entries, aliases) || mergeOverridesPrecedingKey(ordered, aliases)) {
             return null;
         }
         return relayout(mapping, ordered, following, newline, cursor);
@@ -219,8 +220,8 @@ public class OrderKeywords extends Recipe {
         return false;
     }
 
-    // GitLab's YAML parser lets a `<<` merge key override the keys before it, so moving the merge key first would
-    // change which value wins
+    // GitLab's YAML parser lets a `<<` merge key override the keys before it, so moving a key across the merge key
+    // would change which value wins
     private static boolean mergeOverridesPrecedingKey(List<Yaml.Mapping.Entry> entries, Map<UUID, Yaml> aliases) {
         Set<String> preceding = new HashSet<>();
         for (Yaml.Mapping.Entry entry : entries) {
