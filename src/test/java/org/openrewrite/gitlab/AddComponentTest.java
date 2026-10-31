@@ -95,6 +95,45 @@ class AddComponentTest implements RewriteTest {
         );
     }
 
+    @Test
+    void noopWhenOtherVersionPresent() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - template: Gradle.gitlab-ci.yml
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.9.0
+                  inputs:
+                    version: 0.9.0
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
+    @Test
+    void addWhenOnlyPathPrefixMatches() {
+        //language=yaml
+        rewriteRun(
+          yaml(
+            """
+              include:
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline-extras@0.10.0
+              """,
+            """
+              include:
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline-extras@0.10.0
+                - component: $CI_SERVER_FQDN/components/opentofu/full-pipeline@0.10.0
+                  inputs:
+                    version: 0.10.0
+                    opentofu_version: 1.6.1
+              """,
+            source -> source.path(".gitlab-ci.yml")
+          )
+        );
+    }
+
     @Issue("https://github.com/openrewrite/rewrite-gitlab/issues/22")
     @Test
     void addWithoutInputs() {
