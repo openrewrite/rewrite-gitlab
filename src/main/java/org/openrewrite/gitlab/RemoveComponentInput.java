@@ -23,10 +23,10 @@ import org.openrewrite.yaml.YamlIsoVisitor;
 import org.openrewrite.yaml.tree.Yaml;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import static java.util.Collections.disjoint;
 import static java.util.Collections.emptySet;
 import static java.util.Objects.requireNonNull;
 
@@ -78,7 +78,7 @@ public class RemoveComponentInput extends Recipe {
                 Set<String> aliases = getCursor().getNearestMessage(ALIASES, emptySet());
                 Yaml.Mapping inputs = ComponentInputs.inputs(m, aliases);
                 Yaml.Mapping.Entry input = inputs == null ? null : ComponentInputs.find(inputs, inputName);
-                if (input == null || !Collections.disjoint(YamlAnchors.anchorsIn(input), aliases)) {
+                if (input == null || !disjoint(YamlAnchors.anchorsIn(input), aliases)) {
                     return m;
                 }
                 Yaml.Mapping remaining = inputs.withEntries(remove(inputs.getEntries(), input));

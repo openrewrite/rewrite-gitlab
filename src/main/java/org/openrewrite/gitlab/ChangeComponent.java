@@ -131,8 +131,8 @@ public class ChangeComponent extends Recipe {
                 if (reference != null) {
                     Cursor includeCursor = getCursor().getParentTreeCursor();
                     Yaml.Mapping include = includeCursor.getValue();
-                    String settings = include.withEntries(ListUtils.map(include.getEntries(),
-                            sibling -> sibling == entry ? null : sibling)).printTrimmed(includeCursor.getParentOrThrow());
+                    String settings = include.withEntries(ListUtils.filter(include.getEntries(),
+                            sibling -> sibling != entry)).printTrimmed(includeCursor.getParentOrThrow());
                     included.put(entry.getId(), new IncludedComponent(reference, settings));
                 }
                 return super.visitMappingEntry(entry, included);

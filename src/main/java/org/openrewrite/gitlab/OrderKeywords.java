@@ -31,6 +31,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.disjoint;
 import static java.util.Comparator.comparingInt;
 
 @EqualsAndHashCode(callSuper = false)
@@ -210,7 +211,7 @@ public class OrderKeywords extends Recipe {
             String key = entry.getKey().getValue();
             if ("<<".equals(key) && !preceding.isEmpty()) {
                 Set<String> merged = mergedKeys(entry.getValue(), aliases, new HashSet<>());
-                if (merged == null || !Collections.disjoint(preceding, merged)) {
+                if (merged == null || !disjoint(preceding, merged)) {
                     return true;
                 }
             }
